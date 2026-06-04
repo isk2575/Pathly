@@ -1,4 +1,5 @@
 import React, {useState} from "react";
+import { useNavigate } from "react-router-dom";
 import{
     signInWithEmailAndPassword, 
     createUserWithEmailAndPassword,
@@ -8,24 +9,26 @@ import{
 
 import {auth} from "../Firebase";
 
-const provider = new GoogleAuthProvider()//when someone clicks the Google button, use Google as the login method."
+const provider = new GoogleAuthProvider()
 
 export default function Auth()
 {
+    const navigate = useNavigate();
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState("");
     const [ password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [success, setSuccess] = useState("");
 
 
     const handleEmailAuth = async (e) =>
     {
-        e.preventDefault(); // prevent the form from refreshing the page when submitted
+        e.preventDefault(); 
         setError(""); // clear previous error
 
-        if(!isLogin) // for register mode( not login)
+        if(!isLogin) // for register mode(not login)
         {
             if(password !== confirmPassword) 
             {
@@ -38,10 +41,16 @@ export default function Auth()
             if(isLogin)
             {
                 await signInWithEmailAndPassword(auth, email, password);
+                navigate('/map');
             }
             else{
                 await createUserWithEmailAndPassword(auth, email, password);
+                setSuccess("Account created! Please sign in");
+                setPassword("");
+                setConfirmPassword("");
+                setIsLogin(true);
             }
+            
         }
         catch(err)
         {
@@ -62,6 +71,7 @@ export default function Auth()
         try{
             await signInWithPopup(auth, provider)
             //redirect after successful auth
+            navigate ('/map');
 
         }
         catch(err){
@@ -107,7 +117,8 @@ export default function Auth()
             {/* Toggle Login / Register */}
             <div className="flex rounded-lg bg-gray-800 p-1 mb-6">
                 <button
-                onClick={() => { setIsLogin(true); setError(""); }}
+                onClick={() => { setIsLogin(true); setError(""); setSuccess("");setEmail("");setPassword(""); setConfirmPassword("") }}
+                
                 className={`flex-1 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                     isLogin
                     ? "bg-red-600 text-white shadow"
@@ -117,7 +128,7 @@ export default function Auth()
                 Sign In
                 </button>
                 <button
-                onClick={() => { setIsLogin(false); setError(""); }}
+                onClick={() => { setIsLogin(false); setError("");setSuccess("");setEmail("");setPassword(""); setConfirmPassword("") }}
                 className={`flex-1 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                     !isLogin
                     ? "bg-red-600 text-white shadow"
@@ -134,6 +145,12 @@ export default function Auth()
                 {error}
                 </div>
             )}
+            {success && (
+                <div className="bg-green-900/40 border border-green-700 text-green-300 text-sm rounded-lg px-4 py-3 mb-4">
+                    {success}
+                </div>
+            )}
+
     
             {/* Email / Password Form */}
             <form onSubmit={handleEmailAuth} className="space-y-4">
