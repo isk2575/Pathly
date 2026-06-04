@@ -35,8 +35,9 @@ export default function SOSButton() {
     <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-10">
       
       {/* Hold instruction */}
-      <p className="text-white text-xs font-medium opacity-70">
-        Hold 2 seconds to activate SOS
+      <p className="text-white text-xs font-medium relative">
+        <span className="absolute -inset-1 rounded-lg animate-pulse bg-red-600/30 blur-sm" />
+        <span className="relative">Hold 2 seconds to activate SOS</span>
       </p>
 
       {/* SOS Button */}
