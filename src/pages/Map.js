@@ -1,5 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../Firebase';
+import LeftPanel from '../components/LeftPanel';
+import RightPanel from '../components/RightPanel';
+import BottomBar from '../components/BottomBar';
+
+
 import SOSButton from '../components/SOSButton';
 import Navbar from '../components/Navbar';
 
@@ -35,6 +42,14 @@ const darkStyles = [
 
 export default function Map() {
   const [darkMode, setDarkMode] = useState(true);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
@@ -49,8 +64,11 @@ export default function Map() {
   }
 
   return (
-    <div className="relative w-full h-screen">
-      <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
+    <div className="relative w-full h-screen overflow-hidden">
+      <Navbar darkMode={darkMode} setDarkMode={setDarkMode} user={user} />
+      <LeftPanel darkMode={darkMode} />
+      <RightPanel darkMode={darkMode} />
+      
       <GoogleMap
         mapContainerStyle={mapContainerStyle}
         center={uhCenter}
@@ -64,6 +82,8 @@ export default function Map() {
         }}
       />
       <SOSButton />
+      <BottomBar darkMode={darkMode} />
+         
     </div>
   );
 }

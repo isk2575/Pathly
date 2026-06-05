@@ -32,7 +32,7 @@ export default function SOSButton() {
   };
 
   return (
-    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-10">
+    <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-10">
       
       {/* Hold instruction */}
       <p className="text-white text-xs font-medium relative">
