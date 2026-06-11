@@ -36,3 +36,22 @@
     transform: rotate(360deg);
   }
 }
+
+/* Existing styles above */
+
+/* Mobile Responsive Fixes */
+@media (max-width: 768px) {
+
+  .route-panel {
+    width: calc(100vw - 24px);
+    left: 12px;
+    right: 12px;
+  }
+
+  .sos-button {
+    width: 130px;
+    height: 130px;
+    font-size: 32px;
+  }
+
+}
