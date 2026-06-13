@@ -8,6 +8,7 @@ import BottomBar from '../components/BottomBar';
 import SOSButton from '../components/SOSButton';
 import Navbar from '../components/Navbar';
 import NavigationMode from '../components/NavigationMode';
+import MobilePanel from '../components/MobilePanel';
 
 const mapContainerStyle = {
   width: '100%',
@@ -54,8 +55,19 @@ export default function Map()
   const [user, setUser] = useState(null);
   const [route, setRoute] = useState(null);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [showMobilePanel, setShowMobilePanel] = useState(false);
   const polylineRef = useRef(null);
   const mapRef = useRef(null);
+
+  // detect mobile
+  useEffect(() =>
+  {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // auth state
   useEffect(() =>
@@ -88,12 +100,30 @@ export default function Map()
       });
       mapRef.current.fitBounds(bounds, {
         top: 100,
-        bottom: 100,
-        left: 300,
-        right: 300,
+        bottom: isMobile ? 300 : 100,
+        left: isMobile ? 40 : 300,
+        right: isMobile ? 40 : 300,
       });
+
+      // show mobile panel after route found
+      if (isMobile) setShowMobilePanel(true);
     }
   }, [route]);
+
+  // GPS tracking
+  useEffect(() =>
+  {
+    if (!navigator.geolocation) return;
+    const watch = navigator.geolocation.watchPosition(
+      (pos) =>
+      {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      },
+      () => {},
+      { enableHighAccuracy: true }
+    );
+    return () => navigator.geolocation.clearWatch(watch);
+  }, []);
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
@@ -121,9 +151,9 @@ export default function Map()
             latLngBounds: uhBounds,
             strictBounds: false,
           },
-          styles: darkMode ? darkStyles : [],
+          styles: isNavigating ? darkStyles : darkMode ? darkStyles : [],
           disableDefaultUI: isNavigating,
-          zoomControl: !isNavigating,
+          zoomControl: !isNavigating && !isMobile,
         }}
         onLoad={(map) => { mapRef.current = map; }}
       >
@@ -155,10 +185,24 @@ export default function Map()
           onLoad={(polyline) => { polylineRef.current = polyline; }}
         />
 
+        {userLocation && (
+          <Marker
+            position={userLocation}
+            icon={{
+              url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
+                <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="12" cy="12" r="10" fill="#3b82f6" stroke="white" strokeWidth="3"/>
+                  <circle cx="12" cy="12" r="4" fill="white"/>
+                </svg>
+              `),
+              scaledSize: { width: 24, height: 24 },
+            }}
+          />
+        )}
       </GoogleMap>
 
-      {/* Normal mode UI */}
-      {!isNavigating && (
+      {/* DESKTOP — Normal mode UI */}
+      {!isNavigating && !isMobile && (
         <>
           <Navbar darkMode={darkMode} setDarkMode={setDarkMode} user={user} />
           <LeftPanel
@@ -168,6 +212,112 @@ export default function Map()
           />
           <RightPanel darkMode={darkMode} />
           <BottomBar darkMode={darkMode} />
+        </>
+      )}
+
+      {/* MOBILE — Normal mode UI */}
+      {!isNavigating && isMobile && (
+        <>
+          {/* Mobile Navbar — simplified */}
+          <div className="absolute top-0 left-0 right-0 z-10 bg-gray-950/90 backdrop-blur-md px-4 py-3 flex items-center justify-between border-b border-gray-800/50">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                  <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7l-9-5z"/>
+                </svg>
+              </div>
+              <div>
+                <p className="text-white font-bold text-sm leading-none">Pathly</p>
+                <p className="text-gray-400 text-xs">Stay Safe. Stay Connected.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setDarkMode(!darkMode)}
+                className="p-2 rounded-lg bg-gray-800 text-gray-300"
+              >
+                {darkMode
+                  ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="5"/>
+                      <line x1="12" y1="1" x2="12" y2="3"/>
+                      <line x1="12" y1="21" x2="12" y2="23"/>
+                      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                      <line x1="1" y1="12" x2="3" y2="12"/>
+                      <line x1="21" y1="12" x2="23" y2="12"/>
+                      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                  : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                }
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile bottom sheet trigger */}
+          {!showMobilePanel && (
+            <button
+              onClick={() => setShowMobilePanel(true)}
+              className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3.5 rounded-2xl shadow-2xl shadow-blue-900/40 flex items-center gap-2 transition-all"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.35-4.35"/>
+              </svg>
+              Find Safe Route
+            </button>
+          )}
+
+          {/* Mobile bottom sheet */}
+          {showMobilePanel && (
+            <div className="absolute bottom-0 left-0 right-0 z-10 bg-gray-950/95 backdrop-blur-xl rounded-t-3xl border-t border-gray-800/50 shadow-2xl">
+              {/* Handle */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 bg-gray-600 rounded-full" />
+              </div>
+
+              {/* Close button */}
+              <div className="flex items-center justify-between px-5 py-2">
+                <h2 className="text-white font-bold text-base">Find Safe Route</h2>
+                <button
+                  onClick={() => setShowMobilePanel(false)}
+                  className="text-gray-400 p-1"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+
+              {/* Route finder content */}
+              <div className="px-5 pb-8 flex flex-col gap-4">
+
+                {/* From */}
+                <div className="bg-gray-800 border border-gray-700 rounded-2xl p-4">
+                  <p className="text-xs text-gray-400 mb-1">From</p>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                    <span className="text-white text-sm font-medium">My Current Location</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5 ml-4">GPS location</p>
+                </div>
+
+                {/* To */}
+                <div className="bg-gray-800 border border-gray-700 rounded-2xl p-4">
+                  <p className="text-xs text-gray-400 mb-2">To</p>
+                  <MobilePanel
+                    darkMode={darkMode}
+                    onRouteFound={(r) => { setRoute(r); }}
+                    onStartNavigation={() => { setShowMobilePanel(false); setIsNavigating(true); }}
+                  />
+                </div>
+
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -189,8 +339,12 @@ export default function Map()
         />
       )}
 
-      {/* SOS always visible */}
-      <SOSButton />
+      {/* SOS — moves up when mobile panel is open */}
+        <div className={`transition-all duration-300 ${
+          showMobilePanel && isMobile ? 'hidden' : ''
+        }`}>
+          <SOSButton />
+        </div>
 
     </div>
   );
