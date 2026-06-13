@@ -20,19 +20,21 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Create and start virtual environment
+      - name: Install dependencies
         run: |
+          cd backend
           python -m venv antenv
           source antenv/bin/activate
-          pip install -r backend/requirements.txt
+          pip install -r requirements.txt
 
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
         with:
           name: python-app
           path: |
-            backend/
-            !antenv/
+            backend/main.py
+            backend/requirements.txt
+            backend/graph/
 
   deploy:
     runs-on: ubuntu-latest
@@ -59,4 +61,4 @@ jobs:
         with:
           app-name: 'Pathly'
           slot-name: 'Production'
-          startup-command: 'cd /home/site/wwwroot && uvicorn main:app --host 0.0.0.0 --port 8000'
+          startup-command: 'pip install -r requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000'
