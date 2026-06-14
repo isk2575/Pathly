@@ -188,8 +188,6 @@ export default function Map()
       {/* Map — always full screen */}
       <GoogleMap
         mapContainerStyle={mapContainerStyle}
-        center={uhCenter}
-        zoom={16}
         options={{
           restriction: isNavigating ? null : {
             latLngBounds: uhBounds,
@@ -199,7 +197,12 @@ export default function Map()
           disableDefaultUI: isNavigating,
           zoomControl: !isNavigating && !isMobile,
         }}
-        onLoad={(map) => { mapRef.current = map; }}
+        onLoad={(map) =>
+        {
+          mapRef.current = map;
+          map.setCenter(uhCenter);
+          map.setZoom(16);
+        }}
       >
         {blueLightPhones.map((phone) => (
           <Marker
