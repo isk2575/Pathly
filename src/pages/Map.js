@@ -27,6 +27,8 @@ const uhBounds = {
   west: -95.3550,
 };
 
+const API_URL = process.env.REACT_APP_API_URL;
+
 const darkStyles = [
   { elementType: "geometry", stylers: [{ color: "#212121" }] },
   { elementType: "labels.text.stroke", stylers: [{ color: "#212121" }] },
@@ -58,6 +60,7 @@ export default function Map()
   const [userLocation, setUserLocation] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showMobilePanel, setShowMobilePanel] = useState(false);
+  const [locations, setLocations] = useState([]);
   const polylineRef = useRef(null);
   const mapRef = useRef(null);
 
@@ -77,6 +80,15 @@ export default function Map()
       setUser(currentUser);
     });
     return () => unsubscribe();
+  }, []);
+
+  // load pickable destinations from the backend
+  useEffect(() =>
+  {
+    fetch(`${API_URL}/locations`)
+      .then((res) => res.json())
+      .then((data) => setLocations(data))
+      .catch((err) => console.error("Failed to load locations:", err));
   }, []);
 
   // hide/show polyline
@@ -125,6 +137,38 @@ export default function Map()
     return () => navigator.geolocation.clearWatch(watch);
   }, []);
 
+  // fetch a route from the backend and store it
+    const requestRoute = async (endLat, endLng, preference = "safest") =>
+  {
+    const start = userLocation || uhCenter;
+
+    const params = new URLSearchParams({
+      start_lat: start.lat,
+      start_lng: start.lng,
+      end_lat: endLat,
+      end_lng: endLng,
+    });
+
+    try
+    {
+      const res = await fetch(`${API_URL}/route/${preference}?${params}`);
+      const data = await res.json();
+
+      if (data.error)
+      {
+        console.error("Route error:", data.error);
+        return null;
+      }
+
+      setRoute(data.path);
+      return data.path;
+    }
+    catch (err)
+    {
+      console.error("Failed to fetch route:", err);
+      return null;
+    }
+  };
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
   });
@@ -207,7 +251,9 @@ export default function Map()
           <Navbar darkMode={darkMode} setDarkMode={setDarkMode} user={user} />
           <LeftPanel
             darkMode={darkMode}
-            onRouteFound={setRoute}
+            userLocation={userLocation}
+            locations={locations}
+            onRequestRoute={requestRoute}
             onStartNavigation={() => setIsNavigating(true)}
           />
           <RightPanel darkMode={darkMode} />
@@ -310,7 +356,9 @@ export default function Map()
                   <p className="text-xs text-gray-400 mb-2">To</p>
                   <MobilePanel
                     darkMode={darkMode}
-                    onRouteFound={(r) => { setRoute(r); }}
+                    userLocation={userLocation}
+                    locations={locations}
+                    onRequestRoute={requestRoute}
                     onStartNavigation={() => { setShowMobilePanel(false); setIsNavigating(true); }}
                   />
                 </div>

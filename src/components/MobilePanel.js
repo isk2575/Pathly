@@ -1,38 +1,25 @@
 import { useState } from 'react';
-import axios from 'axios';
 
-export default function MobilePanel({ darkMode, onRouteFound, onStartNavigation })
+export default function MobilePanel({ darkMode, locations, onRequestRoute, onStartNavigation })
 {
   const [preference, setPreference] = useState('safest');
   const [routeLoading, setRouteLoading] = useState(false);
   const [endId, setEndId] = useState('');
   const [routeFound, setRouteFound] = useState(false);
 
-  const locations = [
-    { id: 'n1', name: 'MD Anderson Library' },
-    { id: 'n2', name: 'Student Center' },
-    { id: 'n3', name: 'Science Building' },
-    { id: 'n4', name: 'Cougar Village' },
-    { id: 'n5', name: 'Athletics / TDECU Stadium' },
-    { id: 'n6', name: 'Parking Garage' },
-    { id: 'n7', name: 'CT Bauer College' },
-    { id: 'n8', name: 'Cullen Family Plaza' },
-    { id: 'n9', name: 'Moody Towers' },
-    { id: 'n10', name: 'UH Welcome Center' },
-  ];
-
   const handleFindRoute = async () =>
   {
     if (!endId) return;
+
+    // look up the chosen destination's coordinates
+    const destination = locations.find((loc) => loc.id === endId);
+    if (!destination) return;
+
     setRouteLoading(true);
     try
     {
-      const endpoint = preference === 'safest' ? 'safest' : 'fastest';
-      const response = await axios.get(`https://pathly-gbgtejg8bxa8gffj.centralus-01.azurewebsites.net/route/${endpoint}`, {
-        params: { start: 'n1', end: endId }
-      });
-      if (onRouteFound) onRouteFound(response.data.path);
-      setRouteFound(true);
+      const path = await onRequestRoute(destination.lat, destination.lng, preference);
+      setRouteFound(!!path);
     }
     catch (err)
     {
@@ -50,7 +37,7 @@ export default function MobilePanel({ darkMode, onRouteFound, onStartNavigation 
       {/* Destination select */}
       <select
         value={endId}
-        onChange={(e) => { setEndId(e.target.value); setRouteFound(false); if (onRouteFound) onRouteFound(null); }}
+        onChange={(e) => { setEndId(e.target.value); setRouteFound(false); }}
         className="w-full bg-transparent text-white text-sm outline-none"
       >
         <option value="" className="bg-gray-900">Select destination...</option>
