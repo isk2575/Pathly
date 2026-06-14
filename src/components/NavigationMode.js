@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 
 const UH_CAMPUS_ENTRY = { lat: 29.7199, lng: -95.3422 };
 const ON_CAMPUS_THRESHOLD = 500;
+const RECENTER_THRESHOLD_M = 15; // only follow the user once they've moved this far
 
-export default function NavigationMode({ route, onExit, mapRef, darkMode })
+export default function NavigationMode({ route, onExit, mapRef, darkMode, destinationName })
 {
   const [phase, setPhase] = useState('off_campus');
   const [currentNodeIndex, setCurrentNodeIndex] = useState(0);
@@ -16,6 +17,9 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode })
   const watchRef = useRef(null);
   const directionsRendererRef = useRef(null);
   const phaseRef = useRef('off_campus');
+  const lastRecenterRef = useRef(null);
+
+  const destLabel = destinationName || 'Your destination';
 
   const getDistance = (lat1, lng1, lat2, lng2) =>
   {
@@ -39,6 +43,20 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode })
       total += getDistance(route[i].lat, route[i].lng, route[i + 1].lat, route[i + 1].lng);
     }
     return total;
+  };
+
+  // recenter the camera on the user, but only when they've actually moved.
+  // never touches zoom, so manual zoom sticks.
+  const followUser = (userLat, userLng) =>
+  {
+    if (!mapRef.current) return;
+    const last = lastRecenterRef.current;
+    const moved = last ? getDistance(last.lat, last.lng, userLat, userLng) : Infinity;
+    if (moved > RECENTER_THRESHOLD_M)
+    {
+      mapRef.current.panTo({ lat: userLat, lng: userLng });
+      lastRecenterRef.current = { lat: userLat, lng: userLng };
+    }
   };
 
   const getOffCampusDirections = (userLat, userLng) =>
@@ -103,6 +121,7 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode })
     {
       mapRef.current.panTo({ lat: route[0].lat, lng: route[0].lng });
       mapRef.current.setZoom(18);
+      lastRecenterRef.current = { lat: route[0].lat, lng: route[0].lng };
     }
 
     const dist = calculateRouteDistance(0);
@@ -131,11 +150,7 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode })
           phaseRef.current = 'off_campus';
           setPhase('off_campus');
           getOffCampusDirections(userLat, userLng);
-          if (mapRef.current)
-          {
-            mapRef.current.panTo({ lat: userLat, lng: userLng });
-            mapRef.current.setZoom(15);
-          }
+          lastRecenterRef.current = { lat: userLat, lng: userLng };
         }
       },
       () => { switchToOnCampus(); },
@@ -150,11 +165,8 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode })
         const userLng = pos.coords.longitude;
         const distFromUH = getDistance(userLat, userLng, UH_CAMPUS_ENTRY.lat, UH_CAMPUS_ENTRY.lng);
 
-        // always follow user with camera
-        if (mapRef.current)
-        {
-          mapRef.current.panTo({ lat: userLat, lng: userLng });
-        }
+        // follow user gently (only on real movement, no zoom changes)
+        followUser(userLat, userLng);
 
         if (distFromUH < ON_CAMPUS_THRESHOLD)
         {
@@ -164,7 +176,7 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode })
             switchToOnCampus();
           }
 
-          // find closest node on route
+          // find closest point on route
           let closestIndex = 0;
           let closestDist = Infinity;
           route.forEach((node, i) =>
@@ -208,9 +220,7 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode })
     return `${(meters / 1000).toFixed(1)} km`;
   };
 
-  const destination = route ? route[route.length - 1] : null;
-  const nextNode = route && currentNodeIndex < route.length - 1 ? route[currentNodeIndex + 1] : destination;
-  const progress = route ? (currentNodeIndex / (route.length - 1)) * 100 : 0;
+  const progress = route && route.length > 1 ? (currentNodeIndex / (route.length - 1)) * 100 : 0;
 
   // arrived screen
   if (arrived)
@@ -227,7 +237,7 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode })
             <span className="absolute -inset-2 rounded-full animate-ping bg-green-600/20" />
           </div>
           <h2 className="text-white text-3xl font-bold mb-1">Arrived.</h2>
-          <p className="text-green-400 font-medium mb-1">{destination?.name}</p>
+          <p className="text-green-400 font-medium mb-1">{destLabel}</p>
           <p className="text-gray-500 text-sm mb-8">You made it safely. Stay aware.</p>
           <div className="flex flex-col gap-3">
             <button onClick={onExit} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl transition-all">
@@ -268,7 +278,7 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode })
               }`}>
                 {phase === 'off_campus' ? 'Heading to UH Campus' : 'On Campus — Safe Route Active'}
               </p>
-              <p className="text-white font-bold text-sm leading-tight">{destination?.name}</p>
+              <p className="text-white font-bold text-sm leading-tight">{destLabel}</p>
             </div>
           </div>
 
@@ -348,58 +358,19 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode })
               </div>
 
             : <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shrink-0">
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-                        <line x1="12" y1="19" x2="12" y2="5"/>
-                        <polyline points="5 12 12 5 19 12"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-gray-400 text-xs font-medium uppercase tracking-wider">Next stop</p>
-                      <p className="text-white font-bold text-base">{nextNode?.name}</p>
-                    </div>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-12 h-12 bg-green-600 rounded-2xl flex items-center justify-center shrink-0">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+                      <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7l-9-5z"/>
+                    </svg>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    {route && route.map((_, i) => (
-                      <div key={i} className={`rounded-full transition-all duration-300 ${
-                        i < currentNodeIndex ? 'w-2 h-2 bg-green-500'
-                        : i === currentNodeIndex ? 'w-3 h-3 bg-blue-500 ring-2 ring-blue-400/30'
-                        : 'w-2 h-2 bg-gray-700'
-                      }`} />
-                    ))}
+                  <div>
+                    <p className="text-gray-400 text-xs font-medium uppercase tracking-wider">Heading to</p>
+                    <p className="text-white font-bold text-base">{destLabel}</p>
+                    <p className="text-gray-500 text-xs">{formatDistance(distanceRemaining)} remaining on safe route</p>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                  {route && route.map((node, i) => (
-                    <div key={node.id} className="flex items-center gap-2 shrink-0">
-                      <div className="flex flex-col items-center gap-1">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
-                          i < currentNodeIndex ? 'bg-green-600'
-                          : i === currentNodeIndex ? 'bg-blue-600 ring-2 ring-blue-400/40'
-                          : 'bg-gray-800/80'
-                        }`}>
-                          {i < currentNodeIndex
-                            ? <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polyline points="20 6 9 17 4 12"/></svg>
-                            : <span className={`text-xs font-bold ${i === currentNodeIndex ? 'text-white' : 'text-gray-500'}`}>{i + 1}</span>
-                          }
-                        </div>
-                        <span className={`text-xs max-w-14 text-center leading-tight ${
-                          i === currentNodeIndex ? 'text-blue-400 font-medium' : i < currentNodeIndex ? 'text-green-400' : 'text-gray-600'
-                        }`}>
-                          {node.name.split(' ').slice(0, 2).join(' ')}
-                        </span>
-                      </div>
-                      {i < route.length - 1 && (
-                        <div className={`w-5 h-0.5 mb-5 shrink-0 ${i < currentNodeIndex ? 'bg-green-600' : 'bg-gray-700'}`} />
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-3 flex items-center gap-2 bg-green-950/40 border border-green-900/40 rounded-xl px-3 py-2">
+                <div className="flex items-center gap-2 bg-green-950/40 border border-green-900/40 rounded-xl px-3 py-2">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="#22c55e">
                     <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7l-9-5z"/>
                   </svg>
