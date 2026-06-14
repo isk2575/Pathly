@@ -28,7 +28,7 @@ export default function MobilePanel({ darkMode, onRouteFound, onStartNavigation 
     try
     {
       const endpoint = preference === 'safest' ? 'safest' : 'fastest';
-      const response = await axios.get(`http://10.0.0.141:8000/route/${endpoint}`, {
+      const response = await axios.get(`https://pathly-gbgtejg8bxa8gffj.centralus-01.azurewebsites.net/route/${endpoint}`, {
         params: { start: 'n1', end: endId }
       });
       if (onRouteFound) onRouteFound(response.data.path);
