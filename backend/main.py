@@ -1,9 +1,9 @@
+import os
+from math import radians, sin, cos, sqrt, atan2
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from graph.node import Node
-from graph.edge import Edge
-from graph.campus_graph import CampusGraph
-from graph.route_engine import RouteEngine
+import networkx as nx
 
 app = FastAPI()
 
@@ -16,103 +16,129 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ─── Build UH Campus Graph ───────────────────────────────────────────
+# ─── Tunables ────────────────────────────────────────────────────────
+# How much we are willing to detour for safety.
+#   0   = ignore safety, take the shortest path
+#   2.0 = accept a longer route to stay near blue lights
+# Edit and restart to retune. No graph rebuild needed.
+SAFETY_WEIGHT = 2.0
 
-graph = CampusGraph()
+# ─── Load the prebuilt campus walking graph ──────────────────────────
+# campus_graph.graphml is generated offline by build_campus_graph.py.
+# We load that file instead of calling OpenStreetMap at startup, so the
+# app boots fast and never times out waiting on a network fetch.
+GRAPH_PATH = os.path.join(os.path.dirname(__file__), "campus_graph.graphml")
+graph = nx.read_graphml(GRAPH_PATH)
 
-# --- Nodes (UH campus locations) ---
-nodes = [
-    Node("n1", "MD Anderson Library",        29.7210, -95.3420, lighting_level=8, has_blue_light=True),
-    Node("n2", "Student Center",              29.7197, -95.3432, lighting_level=7, has_blue_light=True),
-    Node("n3", "Science Building",            29.7220, -95.3415, lighting_level=6, has_blue_light=False),
-    Node("n4", "Cougar Village",              29.7178, -95.3408, lighting_level=5, has_blue_light=True),
-    Node("n5", "Athletics / TDECU Stadium",   29.7235, -95.3445, lighting_level=7, has_blue_light=False),
-    Node("n6", "Parking Garage",              29.7188, -95.3398, lighting_level=4, has_blue_light=True),
-    Node("n7", "CT Bauer College",            29.7205, -95.3410, lighting_level=7, has_blue_light=False),
-    Node("n8", "Cullen Family Plaza",         29.7215, -95.3435, lighting_level=9, has_blue_light=True),
-    Node("n9", "Moody Towers",                29.7182, -95.3420, lighting_level=6, has_blue_light=False),
-    Node("n10", "UH Welcome Center",          29.7193, -95.3425, lighting_level=8, has_blue_light=True),
+# GraphML stores every attribute as a string, so cast the ones we use.
+for node_id, data in graph.nodes(data=True):
+    data["x"] = float(data["x"])  # longitude
+    data["y"] = float(data["y"])  # latitude
+
+for u, v, data in graph.edges(data=True):
+    length = float(data.get("length", 0.0))
+    penalty = float(data.get("safety_penalty", 0.0))
+    data["length"] = length
+    # blended cost: real walking distance + a safety surcharge
+    data["safe_cost"] = length + SAFETY_WEIGHT * penalty
+
+# ─── Static campus data (markers + pickable destinations) ────────────
+# Named places a user can route to. Routing snaps each lat/lng to the
+# nearest real graph node, so these don't have to sit exactly on a path.
+LOCATIONS = [
+    {"id": "library",  "name": "MD Anderson Library", "lat": 29.7210, "lng": -95.3420},
+    {"id": "studentc", "name": "Student Center",       "lat": 29.7197, "lng": -95.3432},
+    {"id": "science",  "name": "Science Building",     "lat": 29.7220, "lng": -95.3415},
+    {"id": "cougarv",  "name": "Cougar Village",       "lat": 29.7178, "lng": -95.3408},
+    {"id": "stadium",  "name": "TDECU Stadium",        "lat": 29.7235, "lng": -95.3445},
+    {"id": "garage",   "name": "Parking Garage",       "lat": 29.7188, "lng": -95.3398},
+    {"id": "bauer",    "name": "CT Bauer College",     "lat": 29.7205, "lng": -95.3410},
+    {"id": "plaza",    "name": "Cullen Family Plaza",  "lat": 29.7215, "lng": -95.3435},
+    {"id": "moody",    "name": "Moody Towers",         "lat": 29.7182, "lng": -95.3420},
+    {"id": "welcome",  "name": "UH Welcome Center",    "lat": 29.7193, "lng": -95.3425},
 ]
 
-for node in nodes:
-    graph.add_node(node)
-
-# --- Edges (paths between locations) ---
-edges = [
-    Edge("e1",  graph.get_node("n1"),  graph.get_node("n2"),  120, lighting_level=8, report_count=0),
-    Edge("e2",  graph.get_node("n1"),  graph.get_node("n3"),   80, lighting_level=6, report_count=0),
-    Edge("e3",  graph.get_node("n2"),  graph.get_node("n10"), 100, lighting_level=7, report_count=0),
-    Edge("e4",  graph.get_node("n2"),  graph.get_node("n5"),  200, lighting_level=5, report_count=1),
-    Edge("e5",  graph.get_node("n3"),  graph.get_node("n7"),   90, lighting_level=7, report_count=0),
-    Edge("e6",  graph.get_node("n4"),  graph.get_node("n9"),  150, lighting_level=4, report_count=2),
-    Edge("e7",  graph.get_node("n4"),  graph.get_node("n10"), 130, lighting_level=6, report_count=0),
-    Edge("e8",  graph.get_node("n5"),  graph.get_node("n8"),  180, lighting_level=8, report_count=0),
-    Edge("e9",  graph.get_node("n6"),  graph.get_node("n9"),  110, lighting_level=4, report_count=3),
-    Edge("e10", graph.get_node("n7"),  graph.get_node("n8"),   95, lighting_level=9, report_count=0),
-    Edge("e11", graph.get_node("n8"),  graph.get_node("n1"),  140, lighting_level=9, report_count=0),
-    Edge("e12", graph.get_node("n9"),  graph.get_node("n10"), 120, lighting_level=6, report_count=1),
-    Edge("e13", graph.get_node("n10"), graph.get_node("n6"),  160, lighting_level=5, report_count=0),
+# Blue light emergency phones (lat, lng) — used as map markers.
+# Keep this in sync with the BLUE_LIGHTS list in build_campus_graph.py.
+BLUE_LIGHTS = [
+    {"lat": 29.7210, "lng": -95.3420},
+    {"lat": 29.7197, "lng": -95.3432},
+    {"lat": 29.7178, "lng": -95.3408},
+    {"lat": 29.7188, "lng": -95.3398},
+    {"lat": 29.7215, "lng": -95.3435},
+    {"lat": 29.7193, "lng": -95.3425},
 ]
 
-for edge in edges:
-    graph.add_edge(edge)
 
-engine = RouteEngine(graph)
+# ─── Helpers ─────────────────────────────────────────────────────────
+def haversine_m(lat1, lng1, lat2, lng2):
+    """Straight-line distance in meters between two lat/lng points."""
+    R = 6371000
+    dlat = radians(lat2 - lat1)
+    dlng = radians(lng2 - lng1)
+    a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng / 2) ** 2
+    return R * 2 * atan2(sqrt(a), sqrt(1 - a))
 
-# ─── API Routes ──────────────────────────────────────────────────────
 
+def nearest_node(lat, lng):
+    """Find the graph node closest to a given coordinate."""
+    best_id = None
+    best_dist = float("inf")
+    for node_id, data in graph.nodes(data=True):
+        d = haversine_m(lat, lng, data["y"], data["x"])
+        if d < best_dist:
+            best_dist = d
+            best_id = node_id
+    return best_id
+
+
+def build_route(start_lat, start_lng, end_lat, end_lng, weight_attr):
+    """Snap start/end to the graph, run Dijkstra, return a list of lat/lng points."""
+    origin = nearest_node(start_lat, start_lng)
+    destination = nearest_node(end_lat, end_lng)
+
+    if origin is None or destination is None:
+        return None
+
+    try:
+        node_ids = nx.shortest_path(graph, origin, destination, weight=weight_attr)
+    except nx.NetworkXNoPath:
+        return None
+
+    path = []
+    for node_id in node_ids:
+        node = graph.nodes[node_id]
+        path.append({"lat": node["y"], "lng": node["x"]})
+    return path
+
+
+# ─── API routes ──────────────────────────────────────────────────────
 @app.get("/")
 def root():
     return {"message": "Pathly routing engine is running"}
 
-@app.get("/nodes")
-def get_nodes():
-    return [
-        {
-            "id": node.node_id,
-            "name": node.name,
-            "lat": node.lat,
-            "lng": node.lng,
-            "lighting_level": node.lighting_level,
-            "has_blue_light": node.has_blue_light,
-        }
-        for node in graph.nodes.values()
-    ]
+
+@app.get("/locations")
+def get_locations():
+    return LOCATIONS
+
+
+@app.get("/bluelights")
+def get_bluelights():
+    return BLUE_LIGHTS
+
 
 @app.get("/route/safest")
-def get_safest_route(start: str, end: str):
-    result = engine.find_safest_route(start, end)
-    if result is None:
+def get_safest_route(start_lat: float, start_lng: float, end_lat: float, end_lng: float):
+    path = build_route(start_lat, start_lng, end_lat, end_lng, "safe_cost")
+    if path is None:
         return {"error": "No route found"}
-    return {
-        "preference": "safest",
-        "total_cost": result["total_cost"],
-        "path": [
-            {
-                "id": node.node_id,
-                "name": node.name,
-                "lat": node.lat,
-                "lng": node.lng,
-            }
-            for node in result["nodes"]
-        ]
-    }
+    return {"preference": "safest", "path": path}
+
 
 @app.get("/route/fastest")
-def get_fastest_route(start: str, end: str):
-    result = engine.find_fastest_route(start, end)
-    if result is None:
+def get_fastest_route(start_lat: float, start_lng: float, end_lat: float, end_lng: float):
+    path = build_route(start_lat, start_lng, end_lat, end_lng, "length")
+    if path is None:
         return {"error": "No route found"}
-    return {
-        "preference": "fastest",
-        "total_cost": result["total_cost"],
-        "path": [
-            {
-                "id": node.node_id,
-                "name": node.name,
-                "lat": node.lat,
-                "lng": node.lng,
-            }
-            for node in result["nodes"]
-        ]
-    }
+    return {"preference": "fastest", "path": path}
