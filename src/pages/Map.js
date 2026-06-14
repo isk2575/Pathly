@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../Firebase';
@@ -122,14 +122,21 @@ export default function Map()
     }
   }, [route]);
 
-  // GPS tracking
+  // GPS tracking (throttled so tiny jitters don't re-render constantly)
   useEffect(() =>
   {
     if (!navigator.geolocation) return;
     const watch = navigator.geolocation.watchPosition(
       (pos) =>
       {
-        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setUserLocation((prev) =>
+        {
+          const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          if (!prev) return next;
+          const moved = Math.hypot(next.lat - prev.lat, next.lng - prev.lng);
+          if (moved < 0.00005) return prev; // ~5 meters; ignore jitter
+          return next;
+        });
       },
       () => {},
       { enableHighAccuracy: true }
@@ -138,7 +145,7 @@ export default function Map()
   }, []);
 
   // fetch a route from the backend and store it
-    const requestRoute = async (endLat, endLng, preference = "safest") =>
+  const requestRoute = async (endLat, endLng, preference = "safest") =>
   {
     const start = userLocation || uhCenter;
 
@@ -169,6 +176,13 @@ export default function Map()
       return null;
     }
   };
+
+  // build the polyline points once per route change, not on every render
+  const routePath = useMemo(
+    () => (route ? route.map((node) => ({ lat: node.lat, lng: node.lng })) : []),
+    [route]
+  );
+
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
   });
@@ -222,7 +236,7 @@ export default function Map()
         ))}
 
         <Polyline
-          path={route ? route.map(node => ({ lat: node.lat, lng: node.lng })) : []}
+          path={routePath}
           options={{
             strokeColor: '#22c55e',
             strokeOpacity: 1,
