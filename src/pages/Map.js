@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker, Polyline, InfoWindow } from '@react-google-maps/api';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../Firebase';
 import LeftPanel from '../components/LeftPanel';
@@ -76,6 +76,7 @@ export default function Map()
   const [locations, setLocations] = useState([]);
   const polylineRef = useRef(null);
   const mapRef = useRef(null);
+  const [selectedPhone, setSelectedPhone] = useState(null);
 
   // detect mobile
   useEffect(() =>
@@ -237,6 +238,7 @@ export default function Map()
             key={phone.id}
             position={{ lat: phone.lat, lng: phone.lng }}
             title={phone.name}
+            onClick={() => setSelectedPhone(phone)}
             icon={{
               url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
                 <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
