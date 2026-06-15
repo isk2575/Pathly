@@ -28,6 +28,19 @@ const uhBounds = {
 };
 
 const API_URL = process.env.REACT_APP_API_URL;
+const PARKING_GARAGE = { lat: 29.7188, lng: -95.3398 };
+
+// inside the campus bounding box?
+const isOnCampus = (loc) =>
+{
+  if (!loc) return false;
+  return (
+    loc.lat <= uhBounds.north &&
+    loc.lat >= uhBounds.south &&
+    loc.lng <= uhBounds.east &&
+    loc.lng >= uhBounds.west
+  );
+};
 
 const darkStyles = [
   { elementType: "geometry", stylers: [{ color: "#212121" }] },
@@ -147,7 +160,8 @@ export default function Map()
   // fetch a route from the backend and store it
   const requestRoute = async (endLat, endLng, preference = "safest") =>
   {
-    const start = userLocation || uhCenter;
+    // on campus → start from where you are; off campus → start from the garage (where the blue leg drops you)
+    const start = isOnCampus(userLocation) ? userLocation : PARKING_GARAGE;
 
     const params = new URLSearchParams({
       start_lat: start.lat,

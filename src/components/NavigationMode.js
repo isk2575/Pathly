@@ -1,8 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
 
-const UH_CAMPUS_ENTRY = { lat: 29.7199, lng: -95.3422 };
-const ON_CAMPUS_THRESHOLD = 500;
+// The campus parking garage — the transfer point where the off-campus (Google)
+// leg ends and the on-campus (safe-route) leg begins.
+const PARKING_GARAGE = { lat: 29.7188, lng: -95.3398 };
+
+// Campus bounding box — used to decide whether the user is on campus.
+const CAMPUS_BOUNDS = { north: 29.7300, south: 29.7100, east: -95.3300, west: -95.3550 };
+
 const RECENTER_THRESHOLD_M = 15; // only follow the user once they've moved this far
+
+function isInsideCampus(lat, lng)
+{
+  return (
+    lat <= CAMPUS_BOUNDS.north &&
+    lat >= CAMPUS_BOUNDS.south &&
+    lng <= CAMPUS_BOUNDS.east &&
+    lng >= CAMPUS_BOUNDS.west
+  );
+}
 
 export default function NavigationMode({ route, onExit, mapRef, darkMode, destinationName })
 {
@@ -59,6 +74,7 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
     }
   };
 
+  // Off-campus leg: Google walking directions from the user to the parking garage.
   const getOffCampusDirections = (userLat, userLng) =>
   {
     if (!window.google || !mapRef.current) return;
@@ -83,7 +99,7 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
     directionsService.route(
       {
         origin: { lat: userLat, lng: userLng },
-        destination: UH_CAMPUS_ENTRY,
+        destination: PARKING_GARAGE,
         travelMode: window.google.maps.TravelMode.WALKING,
       },
       (result, status) =>
@@ -97,8 +113,14 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
 
           const bounds = new window.google.maps.LatLngBounds();
           bounds.extend({ lat: userLat, lng: userLng });
-          bounds.extend(UH_CAMPUS_ENTRY);
+          bounds.extend(PARKING_GARAGE);
           mapRef.current.fitBounds(bounds, { top: 120, bottom: 200, left: 40, right: 40 });
+        }
+        else
+        {
+          console.error('Off-campus directions failed:', status);
+          mapRef.current.panTo({ lat: userLat, lng: userLng });
+          mapRef.current.setZoom(15);
         }
       }
     );
@@ -139,9 +161,8 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
       {
         const userLat = pos.coords.latitude;
         const userLng = pos.coords.longitude;
-        const distFromUH = getDistance(userLat, userLng, UH_CAMPUS_ENTRY.lat, UH_CAMPUS_ENTRY.lng);
 
-        if (distFromUH < ON_CAMPUS_THRESHOLD)
+        if (isInsideCampus(userLat, userLng))
         {
           switchToOnCampus();
         }
@@ -163,14 +184,13 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
       {
         const userLat = pos.coords.latitude;
         const userLng = pos.coords.longitude;
-        const distFromUH = getDistance(userLat, userLng, UH_CAMPUS_ENTRY.lat, UH_CAMPUS_ENTRY.lng);
 
         // follow user gently (only on real movement, no zoom changes)
         followUser(userLat, userLng);
 
-        if (distFromUH < ON_CAMPUS_THRESHOLD)
+        if (isInsideCampus(userLat, userLng))
         {
-          // auto detect campus — switch phases automatically
+          // crossed onto campus — switch from the Google leg to the safe route
           if (phaseRef.current === 'off_campus')
           {
             switchToOnCampus();
@@ -276,7 +296,7 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
               <p className={`text-xs font-bold uppercase tracking-wider ${
                 phase === 'off_campus' ? 'text-blue-400' : 'text-green-400'
               }`}>
-                {phase === 'off_campus' ? 'Heading to UH Campus' : 'On Campus — Safe Route Active'}
+                {phase === 'off_campus' ? 'Heading to Campus Parking' : 'On Campus — Safe Route Active'}
               </p>
               <p className="text-white font-bold text-sm leading-tight">{destLabel}</p>
             </div>
@@ -287,7 +307,7 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
               ? <>
                   <div className="text-right">
                     <p className="text-white font-black text-xl leading-none">{offCampusDistance ?? '...'}</p>
-                    <p className="text-gray-500 text-xs mt-0.5">to campus</p>
+                    <p className="text-gray-500 text-xs mt-0.5">to parking</p>
                   </div>
                   <div className="w-px h-8 bg-gray-700" />
                   <div className="text-right">
@@ -343,8 +363,8 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
                   </div>
                   <div>
                     <p className="text-gray-400 text-xs font-medium uppercase tracking-wider">Walking to</p>
-                    <p className="text-white font-bold text-base">University of Houston</p>
-                    <p className="text-gray-500 text-xs">Safe route activates automatically when you arrive</p>
+                    <p className="text-white font-bold text-base">Campus Parking Garage</p>
+                    <p className="text-gray-500 text-xs">Safe route activates automatically when you reach campus</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 bg-blue-950/40 border border-blue-900/40 rounded-xl px-3 py-2">
@@ -353,7 +373,7 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
                     <line x1="12" y1="8" x2="12" y2="12"/>
                     <line x1="12" y1="16" x2="12.01" y2="16"/>
                   </svg>
-                  <p className="text-blue-400 text-xs">Following Google Maps walking directions to campus</p>
+                  <p className="text-blue-400 text-xs">Following Google Maps walking directions to campus parking</p>
                 </div>
               </div>
 
