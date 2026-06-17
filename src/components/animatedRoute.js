@@ -90,4 +90,5 @@ export default function AnimatedRoute({ path, isNavigating })
       />
     </>
   );
+  //changed
 }
