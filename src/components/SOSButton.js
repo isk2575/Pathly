@@ -33,8 +33,8 @@ export default function SOSButton({ isNavigating = false }) {
   // During navigation, sit just above the bottom card on the left (mirrors the
   // Recenter button on the right). Otherwise, the big centered button.
   const containerClass = isNavigating
-    ? 'absolute bottom-full mb-2 left-4 flex flex-col items-center gap-1 z-30'
-    : 'absolute bottom-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-10';
+    ? 'absolute bottom-full mb-5 left-4 flex flex-col items-center gap-1 z-30'
+    : 'absolute bottom-32 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-10';
 
   const buttonClass = isNavigating
     ? 'relative w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow-lg shadow-red-900/50 flex items-center justify-center select-none'
