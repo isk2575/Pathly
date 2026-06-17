@@ -107,7 +107,7 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
     }
 
     const renderer = new window.google.maps.DirectionsRenderer({
-      suppressMarkers: false,
+      suppressMarkers: true, // hide Google's default A/B pins — we use our own markers
       preserveViewport: true, // don't let it zoom out to fit the whole route
       polylineOptions: {
         strokeColor: '#3b82f6',
@@ -122,7 +122,8 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
     directionsService.route(
       {
         origin: { lat: userLat, lng: userLng },
-        destination: PARKING_GARAGE,
+        // end the blue leg exactly where the green safe route begins, so the two paths merge
+        destination: (route && route.length > 0) ? { lat: route[0].lat, lng: route[0].lng } : PARKING_GARAGE,
         travelMode: window.google.maps.TravelMode.WALKING,
       },
       (result, status) =>
@@ -160,9 +161,45 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
     setTimeRemaining(Math.ceil(dist / 1.4 / 60));
   };
 
+  // --- Journey markers (A start, B parking, C campus departure, D arrival) ---
+  const markersRef = useRef([]);
+
+  const addMarker = (position, letter, color) =>
+  {
+    if (!window.google || !mapRef.current || !position) return;
+    const marker = new window.google.maps.Marker({
+      position,
+      map: mapRef.current,
+      zIndex: 60,
+      label: { text: letter, color: '#ffffff', fontWeight: '700', fontSize: '13px' },
+      icon: {
+        url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
+          <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+            <defs><filter id="lg" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter></defs>
+            <circle cx="20" cy="20" r="12" fill="${color}" opacity="0.85" filter="url(#lg)"/>
+            <circle cx="20" cy="20" r="11" fill="${color}" stroke="#ffffff" stroke-width="2"/>
+          </svg>
+        `),
+        scaledSize: new window.google.maps.Size(40, 40),
+        labelOrigin: new window.google.maps.Point(20, 20),
+      },
+    });
+    markersRef.current.push(marker);
+  };
+
+  const clearMarkers = () =>
+  {
+    markersRef.current.forEach((m) => m.setMap(null));
+    markersRef.current = [];
+  };
+
   useEffect(() =>
   {
     if (!route || route.length === 0) return;
+
+    // arrival marker is always shown
+    clearMarkers();
+    addMarker(route[route.length - 1], 'D', '#22c55e');
 
     // get initial position
     navigator.geolocation.getCurrentPosition(
@@ -184,6 +221,12 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
         {
           phaseRef.current = 'off_campus';
           setPhase('off_campus');
+
+          // off-campus journey: A start → B parking → C campus departure → D arrival
+          addMarker({ lat: userLat, lng: userLng }, 'A', '#3b82f6'); // where you start
+          addMarker(PARKING_GARAGE, 'B', '#3b82f6');                 // park here (transfer)
+          addMarker(route[0], 'C', '#22c55e');                       // safe route begins on campus
+
           getOffCampusDirections(userLat, userLng);
         }
       },
@@ -245,6 +288,7 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
     {
       if (watchRef.current) navigator.geolocation.clearWatch(watchRef.current);
       if (directionsRendererRef.current) directionsRendererRef.current.setMap(null);
+      clearMarkers();
     };
   }, []);
 
