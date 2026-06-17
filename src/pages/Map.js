@@ -182,8 +182,13 @@ export default function Map()
         return null;
       }
 
-      setRoute(data.path);
-      return data.path;
+      // the backend route ends at the nearest path node — extend it to the exact
+      // destination so the green line actually reaches the place you picked
+      const path = Array.isArray(data.path) ? data.path : [];
+      const fullPath = path.length > 0 ? [...path, { lat: endLat, lng: endLng }] : path;
+
+      setRoute(fullPath);
+      return fullPath;
     }
     catch (err)
     {

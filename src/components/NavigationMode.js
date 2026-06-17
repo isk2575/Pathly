@@ -7,7 +7,7 @@ const PARKING_GARAGE = { lat: 29.7188, lng: -95.3398 };
 // Campus bounding box — used to decide whether the user is on campus.
 const CAMPUS_BOUNDS = { north: 29.7300, south: 29.7100, east: -95.3300, west: -95.3550 };
 
-const NAV_ZOOM = 18;             // how tight to zoom on the user when navigating
+const NAV_ZOOM = 19;             // how tight to zoom on the user when navigating
 const RECENTER_THRESHOLD_M = 10; // follow the user once they've moved this far
 
 function isInsideCampus(lat, lng)
@@ -222,9 +222,8 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
           phaseRef.current = 'off_campus';
           setPhase('off_campus');
 
-          // off-campus journey: A start → B parking → C campus departure → D arrival
+          // off-campus journey: A start → (blue light marks the garage) → C campus departure → D arrival
           addMarker({ lat: userLat, lng: userLng }, 'A', '#3b82f6'); // where you start
-          addMarker(PARKING_GARAGE, 'B', '#3b82f6');                 // park here (transfer)
           addMarker(route[0], 'C', '#22c55e');                       // safe route begins on campus
 
           getOffCampusDirections(userLat, userLng);
