@@ -240,14 +240,16 @@ export default function Map()
             title={phone.name}
             onClick={() => setSelectedPhone(phone)}
             icon={{
-              url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
-                <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="16" cy="16" r="14" fill="#2563eb" stroke="white" strokeWidth="2"/>
-                  <path d="M16 8L10 13v6c0 3.5 2.5 6.8 6 7.6 3.5-.8 6-4.1 6-7.6v-6l-6-5z" fill="white"/>
-                </svg>
-              `),
-              scaledSize: { width: 32, height: 32 },
-            }}
+                url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
+                  <svg width="46" height="46" viewBox="0 0 46 46" xmlns="http://www.w3.org/2000/svg">
+                    <defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter></defs>
+                    <circle cx="23" cy="23" r="13" fill="#3b82f6" opacity="0.9" filter="url(#glow)"/>
+                    <circle cx="23" cy="23" r="12" fill="#2563eb" stroke="#ffffff" stroke-width="2"/>
+                    <path d="M23 15 L17 20 v6 c0 3.4 2.4 6.6 6 7.4 3.6-.8 6-4 6-7.4 v-6 z" fill="#ffffff"/>
+                  </svg>
+                `),
+                scaledSize: { width: 44, height: 44 },
+              }}
           />
         ))}
 
@@ -268,14 +270,16 @@ export default function Map()
           <Marker
             position={userLocation}
             icon={{
-              url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
-                <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="12" cy="12" r="10" fill="#3b82f6" stroke="white" strokeWidth="3"/>
-                  <circle cx="12" cy="12" r="4" fill="white"/>
-                </svg>
-              `),
-              scaledSize: { width: 24, height: 24 },
-            }}
+                url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
+                  <svg width="34" height="34" viewBox="0 0 34 34" xmlns="http://www.w3.org/2000/svg">
+                    <defs><filter id="ug" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter></defs>
+                    <circle cx="17" cy="17" r="9" fill="#3b82f6" opacity="0.9" filter="url(#ug)"/>
+                    <circle cx="17" cy="17" r="8" fill="#3b82f6" stroke="#ffffff" stroke-width="3"/>
+                    <circle cx="17" cy="17" r="3" fill="#ffffff"/>
+                  </svg>
+                `),
+                scaledSize: { width: 30, height: 30 },
+              }}
           />
         )}
       </GoogleMap>
