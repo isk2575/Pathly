@@ -54,7 +54,7 @@ LOCATIONS = [
     {"id": "garage",   "name": "Parking Garage",       "lat": 29.7188, "lng": -95.3398},
     {"id": "bauer",    "name": "CT Bauer College",     "lat": 29.7205, "lng": -95.3410},
     {"id": "plaza",    "name": "Cullen Family Plaza",  "lat": 29.7215, "lng": -95.3435},
-    {"id": "moody",    "name": "Moody Towers",         "lat": 29.7182, "lng": -95.3420},
+    {"id": "moody",     "name": "Moody Towers",        "lat": 29.7173, "lng": -95.3416},
     {"id": "welcome",  "name": "UH Welcome Center",    "lat": 29.7193, "lng": -95.3425},
 ]
 

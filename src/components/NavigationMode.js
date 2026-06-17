@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import SOSButton from './SOSButton';
 
 // The campus parking garage — the transfer point where the off-campus (Google)
 // leg ends and the on-campus (safe-route) leg begins.
@@ -408,6 +409,9 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
 
       {/* BOTTOM CARD */}
       <div className="absolute bottom-0 left-0 right-0 z-20">
+
+        {/* SOS — sits just above the card on the left during navigation */}
+        <SOSButton isNavigating />
 
         {/* Recenter — snaps the camera back onto the user at full zoom */}
         <button

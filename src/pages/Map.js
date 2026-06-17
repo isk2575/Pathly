@@ -433,10 +433,10 @@ export default function Map()
 
       {/* SOS — moves up when mobile panel is open */}
         <div className={`transition-all duration-300 ${
-          showMobilePanel && isMobile ? 'hidden' : ''
-        }`}>
-          <SOSButton />
-        </div>
+            (showMobilePanel && isMobile) || isNavigating ? 'hidden' : ''
+          }`}>
+            <SOSButton />
+          </div>
 
     </div>
   );
