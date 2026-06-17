@@ -34,6 +34,7 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
   const directionsRendererRef = useRef(null);
   const phaseRef = useRef('off_campus');
   const lastRecenterRef = useRef(null);
+  const userPosRef = useRef(null); // always holds the latest GPS fix
 
   const destLabel = destinationName || 'Your destination';
 
@@ -82,6 +83,17 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
       mapRef.current.panTo({ lat: userLat, lng: userLng });
       lastRecenterRef.current = { lat: userLat, lng: userLng };
     }
+  };
+
+  // manual recenter — snap the camera back onto the user at full nav zoom
+  const recenter = () =>
+  {
+    if (!mapRef.current) return;
+    const p = userPosRef.current;
+    if (!p) return;
+    mapRef.current.panTo({ lat: p.lat, lng: p.lng });
+    mapRef.current.setZoom(NAV_ZOOM);
+    lastRecenterRef.current = { lat: p.lat, lng: p.lng };
   };
 
   // Off-campus leg: Google walking directions from the user to the parking garage.
@@ -159,6 +171,8 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
         const userLat = pos.coords.latitude;
         const userLng = pos.coords.longitude;
 
+        userPosRef.current = { lat: userLat, lng: userLng };
+
         // zoom in tight on the user the moment navigation starts
         zoomToUser(userLat, userLng);
 
@@ -183,6 +197,8 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
       {
         const userLat = pos.coords.latitude;
         const userLng = pos.coords.longitude;
+
+        userPosRef.current = { lat: userLat, lng: userLng };
 
         // follow the user as they move (no zoom changes)
         followUser(userLat, userLng);
@@ -349,6 +365,23 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
 
       {/* BOTTOM CARD */}
       <div className="absolute bottom-0 left-0 right-0 z-20">
+
+        {/* Recenter — snaps the camera back onto the user at full zoom */}
+        <button
+          onClick={recenter}
+          aria-label="Recenter on my location"
+          className="absolute -top-16 right-4 z-30 w-12 h-12 rounded-full bg-gray-900/70 backdrop-blur-xl border border-white/15 text-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.4)] flex items-center justify-center transition-all hover:bg-gray-900/90 active:scale-95"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="3"/>
+            <circle cx="12" cy="12" r="8"/>
+            <line x1="12" y1="1" x2="12" y2="4"/>
+            <line x1="12" y1="20" x2="12" y2="23"/>
+            <line x1="1" y1="12" x2="4" y2="12"/>
+            <line x1="20" y1="12" x2="23" y2="12"/>
+          </svg>
+        </button>
+
         <div className="bg-gray-950/80 backdrop-blur-xl border-t border-gray-800/40 shadow-2xl px-5 pt-4 pb-6">
 
           {phase === 'off_campus'
