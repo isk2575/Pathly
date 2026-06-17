@@ -9,7 +9,7 @@ import SOSButton from '../components/SOSButton';
 import Navbar from '../components/Navbar';
 import NavigationMode from '../components/NavigationMode';
 import MobilePanel from '../components/MobilePanel';
-
+import AnimatedRoute from '../components/AnimatedRoute';
 const mapContainerStyle = {
   width: '100%',
   height: '100vh',
@@ -251,16 +251,18 @@ export default function Map()
           />
         ))}
 
-        <Polyline
-          path={routePath}
-          options={{
-            strokeColor: '#22c55e',
-            strokeOpacity: 1,
-            strokeWeight: isNavigating ? 8 : 5,
-            visible: !!route,
-          }}
-          onLoad={(polyline) => { polylineRef.current = polyline; }}
-        />
+        {selectedPhone && (
+          <InfoWindow
+            position={{ lat: selectedPhone.lat, lng: selectedPhone.lng }}
+            onCloseClick={() => setSelectedPhone(null)}
+          >
+            <div style={{ color: '#111', fontWeight: 600, fontSize: '13px' }}>
+              {selectedPhone.name}
+            </div>
+          </InfoWindow>
+        )}
+
+        <AnimatedRoute path={routePath} isNavigating={isNavigating} />
 
         {userLocation && (
           <Marker

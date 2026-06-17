@@ -7,7 +7,8 @@ const PARKING_GARAGE = { lat: 29.7188, lng: -95.3398 };
 // Campus bounding box — used to decide whether the user is on campus.
 const CAMPUS_BOUNDS = { north: 29.7300, south: 29.7100, east: -95.3300, west: -95.3550 };
 
-const RECENTER_THRESHOLD_M = 15; // only follow the user once they've moved this far
+const NAV_ZOOM = 18;             // how tight to zoom on the user when navigating
+const RECENTER_THRESHOLD_M = 10; // follow the user once they've moved this far
 
 function isInsideCampus(lat, lng)
 {
@@ -60,7 +61,16 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
     return total;
   };
 
-  // recenter the camera on the user, but only when they've actually moved.
+  // snap the camera in close on the user and start the follow tracking
+  const zoomToUser = (userLat, userLng) =>
+  {
+    if (!mapRef.current) return;
+    mapRef.current.panTo({ lat: userLat, lng: userLng });
+    mapRef.current.setZoom(NAV_ZOOM);
+    lastRecenterRef.current = { lat: userLat, lng: userLng };
+  };
+
+  // recenter on the user as they move, but only on real movement.
   // never touches zoom, so manual zoom sticks.
   const followUser = (userLat, userLng) =>
   {
@@ -86,6 +96,7 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
 
     const renderer = new window.google.maps.DirectionsRenderer({
       suppressMarkers: false,
+      preserveViewport: true, // don't let it zoom out to fit the whole route
       polylineOptions: {
         strokeColor: '#3b82f6',
         strokeWeight: 6,
@@ -110,17 +121,10 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
           const leg = result.routes[0].legs[0];
           setOffCampusDistance(leg.distance.text);
           setOffCampusTime(leg.duration.text);
-
-          const bounds = new window.google.maps.LatLngBounds();
-          bounds.extend({ lat: userLat, lng: userLng });
-          bounds.extend(PARKING_GARAGE);
-          mapRef.current.fitBounds(bounds, { top: 120, bottom: 200, left: 40, right: 40 });
         }
         else
         {
           console.error('Off-campus directions failed:', status);
-          mapRef.current.panTo({ lat: userLat, lng: userLng });
-          mapRef.current.setZoom(15);
         }
       }
     );
@@ -139,13 +143,6 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
       directionsRendererRef.current = null;
     }
 
-    if (mapRef.current && route && route.length > 0)
-    {
-      mapRef.current.panTo({ lat: route[0].lat, lng: route[0].lng });
-      mapRef.current.setZoom(18);
-      lastRecenterRef.current = { lat: route[0].lat, lng: route[0].lng };
-    }
-
     const dist = calculateRouteDistance(0);
     setDistanceRemaining(dist);
     setTimeRemaining(Math.ceil(dist / 1.4 / 60));
@@ -162,6 +159,9 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
         const userLat = pos.coords.latitude;
         const userLng = pos.coords.longitude;
 
+        // zoom in tight on the user the moment navigation starts
+        zoomToUser(userLat, userLng);
+
         if (isInsideCampus(userLat, userLng))
         {
           switchToOnCampus();
@@ -171,7 +171,6 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
           phaseRef.current = 'off_campus';
           setPhase('off_campus');
           getOffCampusDirections(userLat, userLng);
-          lastRecenterRef.current = { lat: userLat, lng: userLng };
         }
       },
       () => { switchToOnCampus(); },
@@ -185,7 +184,7 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
         const userLat = pos.coords.latitude;
         const userLng = pos.coords.longitude;
 
-        // follow user gently (only on real movement, no zoom changes)
+        // follow the user as they move (no zoom changes)
         followUser(userLat, userLng);
 
         if (isInsideCampus(userLat, userLng))
