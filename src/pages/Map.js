@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, Polyline, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../Firebase';
 import LeftPanel from '../components/LeftPanel';
@@ -10,6 +10,7 @@ import Navbar from '../components/Navbar';
 import NavigationMode from '../components/NavigationMode';
 import MobilePanel from '../components/MobilePanel';
 import AnimatedRoute from '../components/AnimatedRoute';
+
 const mapContainerStyle = {
   width: '100%',
   height: '100vh',
@@ -64,6 +65,28 @@ const blueLightPhones = [
   { id: 6, name: "Blue Light - Parking Garage", lat: 29.7188, lng: -95.3398 },
 ];
 
+// glowing blue-light marker (blurred halo behind a crisp marker)
+const blueLightIcon =
+  "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
+    <svg width="46" height="46" viewBox="0 0 46 46" xmlns="http://www.w3.org/2000/svg">
+      <defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter></defs>
+      <circle cx="23" cy="23" r="13" fill="#3b82f6" opacity="0.9" filter="url(#glow)"/>
+      <circle cx="23" cy="23" r="12" fill="#2563eb" stroke="#ffffff" stroke-width="2"/>
+      <path d="M23 15 L17 20 v6 c0 3.4 2.4 6.6 6 7.4 3.6-.8 6-4 6-7.4 v-6 z" fill="#ffffff"/>
+    </svg>
+  `);
+
+// glowing user-location dot
+const userDotIcon =
+  "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
+    <svg width="34" height="34" viewBox="0 0 34 34" xmlns="http://www.w3.org/2000/svg">
+      <defs><filter id="ug" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter></defs>
+      <circle cx="17" cy="17" r="9" fill="#3b82f6" opacity="0.9" filter="url(#ug)"/>
+      <circle cx="17" cy="17" r="8" fill="#3b82f6" stroke="#ffffff" stroke-width="3"/>
+      <circle cx="17" cy="17" r="3" fill="#ffffff"/>
+    </svg>
+  `);
+
 export default function Map()
 {
   const [darkMode, setDarkMode] = useState(true);
@@ -74,7 +97,6 @@ export default function Map()
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showMobilePanel, setShowMobilePanel] = useState(false);
   const [locations, setLocations] = useState([]);
-  const polylineRef = useRef(null);
   const mapRef = useRef(null);
   const [selectedPhone, setSelectedPhone] = useState(null);
 
@@ -104,15 +126,6 @@ export default function Map()
       .then((data) => setLocations(data))
       .catch((err) => console.error("Failed to load locations:", err));
   }, []);
-
-  // hide/show polyline
-  useEffect(() =>
-  {
-    if (polylineRef.current)
-    {
-      polylineRef.current.setVisible(route !== null);
-    }
-  }, [route]);
 
   // zoom to fit route
   useEffect(() =>
@@ -245,16 +258,9 @@ export default function Map()
             title={phone.name}
             onClick={() => setSelectedPhone(phone)}
             icon={{
-                url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
-                  <svg width="46" height="46" viewBox="0 0 46 46" xmlns="http://www.w3.org/2000/svg">
-                    <defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter></defs>
-                    <circle cx="23" cy="23" r="13" fill="#3b82f6" opacity="0.9" filter="url(#glow)"/>
-                    <circle cx="23" cy="23" r="12" fill="#2563eb" stroke="#ffffff" stroke-width="2"/>
-                    <path d="M23 15 L17 20 v6 c0 3.4 2.4 6.6 6 7.4 3.6-.8 6-4 6-7.4 v-6 z" fill="#ffffff"/>
-                  </svg>
-                `),
-                scaledSize: { width: 44, height: 44 },
-              }}
+              url: blueLightIcon,
+              scaledSize: { width: 44, height: 44 },
+            }}
           />
         ))}
 
@@ -275,16 +281,9 @@ export default function Map()
           <Marker
             position={userLocation}
             icon={{
-                url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
-                  <svg width="34" height="34" viewBox="0 0 34 34" xmlns="http://www.w3.org/2000/svg">
-                    <defs><filter id="ug" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter></defs>
-                    <circle cx="17" cy="17" r="9" fill="#3b82f6" opacity="0.9" filter="url(#ug)"/>
-                    <circle cx="17" cy="17" r="8" fill="#3b82f6" stroke="#ffffff" stroke-width="3"/>
-                    <circle cx="17" cy="17" r="3" fill="#ffffff"/>
-                  </svg>
-                `),
-                scaledSize: { width: 30, height: 30 },
-              }}
+              url: userDotIcon,
+              scaledSize: { width: 30, height: 30 },
+            }}
           />
         )}
       </GoogleMap>
@@ -350,7 +349,7 @@ export default function Map()
           {!showMobilePanel && (
             <button
               onClick={() => setShowMobilePanel(true)}
-              className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3.5 rounded-2xl shadow-2xl shadow-blue-900/40 flex items-center gap-2 transition-all"
+              className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 bg-blue-600/80 backdrop-blur-md border border-blue-400/40 hover:bg-blue-600 text-white font-semibold px-8 py-3.5 rounded-2xl shadow-2xl hover:shadow-[0_0_24px_rgba(59,130,246,0.5)] flex items-center gap-2 transition-all"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
                 <circle cx="11" cy="11" r="8"/>
@@ -362,10 +361,13 @@ export default function Map()
 
           {/* Mobile bottom sheet */}
           {showMobilePanel && (
-            <div className="absolute bottom-0 left-0 right-0 z-10 bg-gray-950/95 backdrop-blur-xl rounded-t-3xl border-t border-gray-800/50 shadow-2xl">
+            <div className="absolute bottom-0 left-0 right-0 z-10 bg-gray-900/60 backdrop-blur-2xl rounded-t-3xl border-t border-white/10 shadow-2xl">
+              {/* top sheen */}
+              <span className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+
               {/* Handle */}
               <div className="flex justify-center pt-3 pb-1">
-                <div className="w-10 h-1 bg-gray-600 rounded-full" />
+                <div className="w-10 h-1 bg-white/30 rounded-full" />
               </div>
 
               {/* Close button */}
@@ -386,17 +388,17 @@ export default function Map()
               <div className="px-5 pb-8 flex flex-col gap-4">
 
                 {/* From */}
-                <div className="bg-gray-800 border border-gray-700 rounded-2xl p-4">
+                <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-4">
                   <p className="text-xs text-gray-400 mb-1">From</p>
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.9)]" />
                     <span className="text-white text-sm font-medium">My Current Location</span>
                   </div>
                   <p className="text-xs text-gray-500 mt-0.5 ml-4">GPS location</p>
                 </div>
 
                 {/* To */}
-                <div className="bg-gray-800 border border-gray-700 rounded-2xl p-4">
+                <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-4">
                   <p className="text-xs text-gray-400 mb-2">To</p>
                   <MobilePanel
                     darkMode={darkMode}
@@ -431,12 +433,12 @@ export default function Map()
         />
       )}
 
-      {/* SOS — moves up when mobile panel is open */}
-        <div className={`transition-all duration-300 ${
-            (showMobilePanel && isMobile) || isNavigating ? 'hidden' : ''
-          }`}>
-            <SOSButton />
-          </div>
+      {/* SOS — hidden when the mobile sheet is open or during navigation (nav renders its own) */}
+      <div className={`transition-all duration-300 ${
+        (showMobilePanel && isMobile) || isNavigating ? 'hidden' : ''
+      }`}>
+        <SOSButton />
+      </div>
 
     </div>
   );
