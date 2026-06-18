@@ -1,3 +1,5 @@
 fastapi
 uvicorn
 networkx
+sqlalchemy>=2.0
+psycopg2-binary
