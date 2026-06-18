@@ -96,6 +96,7 @@ export default function Map()
   const [userLocation, setUserLocation] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showMobilePanel, setShowMobilePanel] = useState(false);
+  const [showRightPanel, setShowRightPanel] = useState(false);
   const [locations, setLocations] = useState([]);
   const mapRef = useRef(null);
   const [selectedPhone, setSelectedPhone] = useState(null);
@@ -299,7 +300,7 @@ export default function Map()
             onRequestRoute={requestRoute}
             onStartNavigation={() => setIsNavigating(true)}
           />
-          <RightPanel darkMode={darkMode} />
+          <RightPanel darkMode={darkMode} userLocation={userLocation} />
           <BottomBar darkMode={darkMode} />
         </>
       )}
@@ -341,6 +342,17 @@ export default function Map()
                       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
                     </svg>
                 }
+              </button>
+              <button
+                onClick={() => setShowRightPanel(true)}
+                aria-label="Open safety panel"
+                className="p-2 rounded-lg bg-gray-800 text-gray-300"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="3" y1="6" x2="21" y2="6"/>
+                  <line x1="3" y1="12" x2="21" y2="12"/>
+                  <line x1="3" y1="18" x2="21" y2="18"/>
+                </svg>
               </button>
             </div>
           </div>
@@ -412,6 +424,15 @@ export default function Map()
               </div>
             </div>
           )}
+
+          {/* Mobile Safety drawer — opens from the hamburger */}
+          <RightPanel
+            darkMode={darkMode}
+            isMobile
+            isOpen={showRightPanel}
+            onClose={() => setShowRightPanel(false)}
+            userLocation={userLocation}
+          />
         </>
       )}
 
