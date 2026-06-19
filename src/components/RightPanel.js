@@ -36,6 +36,7 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
 {
   const [desktopOpen, setDesktopOpen] = useState(true);
   const [alerts, setAlerts] = useState([]);
+  const [blueLights, setBlueLights] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // live alerts from the database
@@ -46,6 +47,36 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
       .then((data) => { setAlerts(Array.isArray(data) ? data : []); setLoading(false); })
       .catch((err) => { console.error("Failed to load incidents:", err); setLoading(false); });
   }, []);
+
+  // live blue-light phones from the database
+  useEffect(() =>
+  {
+    fetch(`${API_URL}/bluelights`)
+      .then((res) => res.json())
+      .then((data) => setBlueLights(Array.isArray(data) ? data : []))
+      .catch((err) => console.error("Failed to load blue lights:", err));
+  }, []);
+
+  // how many blue lights are near the user — or the campus total if we have no location
+  const NEARBY_MILES = 0.3;
+  let blueLightLabel;
+  if (blueLights.length === 0)
+  {
+    blueLightLabel = '…';
+  }
+  else if (userLocation)
+  {
+    const near = blueLights.filter((bl) =>
+    {
+      const d = milesBetween(userLocation, { lat: bl.lat, lng: bl.lng });
+      return d != null && d <= NEARBY_MILES;
+    }).length;
+    blueLightLabel = `${near} nearby`;
+  }
+  else
+  {
+    blueLightLabel = `${blueLights.length} on campus`;
+  }
 
   // shared inner content (safety score + stats + alerts) used by both desktop and mobile
   const panelContent = (
@@ -100,7 +131,7 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
             <div className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.9)]" />
             <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Blue Light Phones</span>
           </div>
-          <span className="text-blue-400 text-sm font-medium">3 nearby</span>
+          <span className="text-blue-400 text-sm font-medium">{blueLightLabel}</span>
         </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
