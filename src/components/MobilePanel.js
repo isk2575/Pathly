@@ -12,7 +12,7 @@ export default function MobilePanel({ darkMode, locations, onRequestRoute, onSta
     if (!endId) return;
 
     // look up the chosen destination's coordinates
-    const destination = locations.find((loc) => loc.id === endId);
+    const destination = locations.find((loc) => String(loc.id) === endId);
     if (!destination) return;
 
     setRouteLoading(true);
