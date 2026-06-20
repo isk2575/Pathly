@@ -50,6 +50,16 @@ for u, v, data in graph.edges(data=True):
     data["length"] = length
     data["safe_cost"] = length + SAFETY_WEIGHT * penalty
 
+IS_MULTI = graph.is_multigraph()
+
+# ─── Live-incident avoidance (applied to the safest route at request time) ───
+INCIDENT_RADIUS_M = 70.0   # edges within this many metres of an active alert get penalized
+SEVERITY_PENALTY = {       # extra "virtual metres" added to a nearby edge, by severity
+    "danger": 800.0,
+    "warning": 300.0,
+    "info": 80.0,
+}
+
 
 def haversine_m(lat1, lng1, lat2, lng2):
     R = 6371000
@@ -78,6 +88,48 @@ def build_route(start_lat, start_lng, end_lat, end_lng, weight_attr):
     except nx.NetworkXNoPath:
         return None
     return [{"lat": graph.nodes[n]["y"], "lng": graph.nodes[n]["x"]} for n in node_ids]
+
+
+def active_incident_points(db: Session):
+    """Active alerts that have coordinates — the places to route around."""
+    rows = (
+        db.query(Incident)
+        .filter(
+            Incident.status == IncidentStatus.active,
+            Incident.lat.isnot(None),
+            Incident.lng.isnot(None),
+        )
+        .all()
+    )
+    points = []
+    for r in rows:
+        sev = getattr(r.severity, "value", str(r.severity))
+        points.append((r.lat, r.lng, sev))
+    return points
+
+
+def make_incident_weight(incidents):
+    """Dijkstra weight = base safe_cost + penalty for passing near active alerts."""
+    def base_cost(d):
+        if IS_MULTI:
+            return min(float(e.get("safe_cost", e.get("length", 1.0))) for e in d.values())
+        return float(d.get("safe_cost", d.get("length", 1.0)))
+
+    def weight(u, v, d):
+        base = base_cost(d)
+        if not incidents:
+            return base
+        midy = (graph.nodes[u]["y"] + graph.nodes[v]["y"]) / 2.0
+        midx = (graph.nodes[u]["x"] + graph.nodes[v]["x"]) / 2.0
+        penalty = 0.0
+        for (ilat, ilng, sev) in incidents:
+            dist = haversine_m(midy, midx, ilat, ilng)
+            if dist < INCIDENT_RADIUS_M:
+                w = SEVERITY_PENALTY.get(sev, SEVERITY_PENALTY["warning"])
+                penalty += w * (1.0 - dist / INCIDENT_RADIUS_M)
+        return base + penalty
+
+    return weight
 
 
 def get_or_create_user(db: Session, firebase_uid: Optional[str]) -> Optional[User]:
@@ -147,11 +199,13 @@ def create_report(payload: schemas.ReportCreate, db: Session = Depends(get_db)):
 
 
 @app.get("/route/safest")
-def get_safest_route(start_lat: float, start_lng: float, end_lat: float, end_lng: float):
-    path = build_route(start_lat, start_lng, end_lat, end_lng, "safe_cost")
+def get_safest_route(start_lat: float, start_lng: float, end_lat: float, end_lng: float, db: Session = Depends(get_db)):
+    incidents = active_incident_points(db)
+    weight = make_incident_weight(incidents)
+    path = build_route(start_lat, start_lng, end_lat, end_lng, weight)
     if path is None:
         return {"error": "No route found"}
-    return {"preference": "safest", "path": path}
+    return {"preference": "safest", "path": path, "avoided": len(incidents)}
 
 
 @app.get("/route/fastest")

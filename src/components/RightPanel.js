@@ -16,6 +16,16 @@ const MINI_DARK = [
   { featureType: 'poi', stylers: [{ visibility: 'off' }] },
 ];
 
+// "you are here" blue dot for the pin-drop map (matches navigation mode)
+const USER_DOT =
+  'data:image/svg+xml;charset=UTF-8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">' +
+    '<circle cx="11" cy="11" r="10" fill="#3b82f6" fill-opacity="0.25"/>' +
+    '<circle cx="11" cy="11" r="5" fill="#3b82f6" stroke="#ffffff" stroke-width="2"/>' +
+    '</svg>'
+  );
+
 // map DB severity → flat alert accent colors (dot + label)
 const severityStyles = {
   info:    { text: "text-blue-400",   dot: "bg-blue-500" },
@@ -49,6 +59,7 @@ function milesBetween(a, b)
 export default function RightPanel({ darkMode, isMobile = false, isOpen = true, onClose, userLocation, firebaseUid, locations = [] })
 {
   const [desktopOpen, setDesktopOpen] = useState(true);
+  const [alertsOpen, setAlertsOpen] = useState(true);
   const [alerts, setAlerts] = useState([]);
   const [blueLights, setBlueLights] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -247,33 +258,53 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
         </div>
       </div>
 
-      {/* Campus Alerts */}
-      <h2 className="text-white font-semibold text-sm">Campus Alerts</h2>
+      {/* Campus Alerts (collapsible) */}
+      <button
+        onClick={() => setAlertsOpen(!alertsOpen)}
+        className="flex items-center justify-between w-full"
+      >
+        <div className="flex items-center gap-2">
+          <h2 className="text-white font-semibold text-sm">Campus Alerts</h2>
+          {!loading && alerts.length > 0 && (
+            <span className="text-xs text-neutral-300 bg-neutral-800 rounded-full px-2 py-0.5">{alerts.length}</span>
+          )}
+        </div>
+        <svg
+          width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+          className={`text-neutral-400 transition-transform ${alertsOpen ? 'rotate-180' : ''}`}
+        >
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
 
-      {loading && (
-        <p className="text-xs text-neutral-500">Loading alerts…</p>
+      {alertsOpen && (
+        <div className="flex flex-col gap-3 max-h-72 overflow-y-auto">
+          {loading && (
+            <p className="text-xs text-neutral-500">Loading alerts…</p>
+          )}
+          {!loading && alerts.length === 0 && (
+            <p className="text-xs text-neutral-500">No active alerts on campus right now.</p>
+          )}
+          {alerts.map((alert) =>
+          {
+            const c = severityStyles[alert.severity] || severityStyles.warning;
+            const dist = milesBetween(userLocation, { lat: alert.lat, lng: alert.lng });
+            return (
+              <div key={alert.id} className="bg-neutral-800 rounded-2xl p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`w-2 h-2 rounded-full ${c.dot}`} />
+                  <p className={`text-sm font-medium ${c.text}`}>{alert.type}</p>
+                </div>
+                {alert.location_text && <p className="text-xs text-neutral-400">{alert.location_text}</p>}
+                <div className="flex justify-between mt-1">
+                  <p className="text-xs text-neutral-500">{timeAgo(alert.created_at)}</p>
+                  {dist != null && <p className="text-xs text-neutral-500">{dist.toFixed(1)} mi</p>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
-      {!loading && alerts.length === 0 && (
-        <p className="text-xs text-neutral-500">No active alerts on campus right now.</p>
-      )}
-      {alerts.map((alert) =>
-      {
-        const c = severityStyles[alert.severity] || severityStyles.warning;
-        const dist = milesBetween(userLocation, { lat: alert.lat, lng: alert.lng });
-        return (
-          <div key={alert.id} className="bg-neutral-800 rounded-2xl p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <span className={`w-2 h-2 rounded-full ${c.dot}`} />
-              <p className={`text-sm font-medium ${c.text}`}>{alert.type}</p>
-            </div>
-            {alert.location_text && <p className="text-xs text-neutral-400">{alert.location_text}</p>}
-            <div className="flex justify-between mt-1">
-              <p className="text-xs text-neutral-500">{timeAgo(alert.created_at)}</p>
-              {dist != null && <p className="text-xs text-neutral-500">{dist.toFixed(1)} mi</p>}
-            </div>
-          </div>
-        );
-      })}
 
       {/* Report an Incident */}
       {!showReport && (
@@ -408,12 +439,21 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
                 {mapLoaded ? (
                   <div className="rounded-xl overflow-hidden border border-neutral-700">
                     <GoogleMap
-                      mapContainerStyle={{ width: '100%', height: '180px' }}
-                      center={pinPos || userLocation || UH_CENTER}
-                      zoom={16}
+                      mapContainerStyle={{ width: '100%', height: '200px' }}
+                      onLoad={(map) => { map.setCenter(UH_CENTER); map.setZoom(16); }}
                       onClick={(e) => setPinPos({ lat: e.latLng.lat(), lng: e.latLng.lng() })}
                       options={{ disableDefaultUI: true, gestureHandling: 'greedy', styles: MINI_DARK, clickableIcons: false }}
                     >
+                      {userLocation && (
+                        <Marker
+                          position={userLocation}
+                          icon={{
+                            url: USER_DOT,
+                            scaledSize: new window.google.maps.Size(22, 22),
+                            anchor: new window.google.maps.Point(11, 11),
+                          }}
+                        />
+                      )}
                       {pinPos && <Marker position={pinPos} />}
                     </GoogleMap>
                   </div>
@@ -421,7 +461,7 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
                   <p className="text-xs text-neutral-500">Loading map…</p>
                 )}
                 <p className="text-xs text-neutral-500 mt-1">
-                  {pinPos ? 'Pin placed. Tap again to move it.' : 'Tap the map where it happened.'}
+                  {pinPos ? 'Pin placed. Tap again to move it.' : 'Tap on campus where it happened. The blue dot is you.'}
                 </p>
               </div>
             )}
