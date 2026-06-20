@@ -185,6 +185,7 @@ def create_report(payload: schemas.ReportCreate, db: Session = Depends(get_db)):
         title=payload.title,
         description=payload.description,
         location_text=payload.location_text,
+        photo_url=payload.photo_url,
         lat=payload.lat,
         lng=payload.lng,
         severity=severity,

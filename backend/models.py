@@ -80,6 +80,7 @@ class Incident(Base):
     title: Mapped[str] = mapped_column(String(160))
     description: Mapped[Optional[str]] = mapped_column(Text)
     location_text: Mapped[Optional[str]] = mapped_column(String(160))  # "Near Parking Lot B"
+    photo_url: Mapped[Optional[str]] = mapped_column(String)  # Firebase Storage download URL
     lat: Mapped[Optional[float]] = mapped_column(Float)
     lng: Mapped[Optional[float]] = mapped_column(Float)
     severity: Mapped[Severity] = mapped_column(Enum(Severity), default=Severity.warning)

@@ -33,6 +33,7 @@ class IncidentOut(BaseModel):
     title: str
     description: Optional[str] = None
     location_text: Optional[str] = None
+    photo_url: Optional[str] = None
     lat: Optional[float] = None
     lng: Optional[float] = None
     severity: str
@@ -51,6 +52,7 @@ class ReportCreate(BaseModel):
     title: str
     description: Optional[str] = None
     location_text: Optional[str] = None
+    photo_url: Optional[str] = None     # Firebase Storage URL, set after upload
     lat: Optional[float] = None
     lng: Optional[float] = None
     severity: str = "warning"          # info | warning | danger

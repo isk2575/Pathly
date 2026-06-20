@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
+import { storage } from '../Firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const API_URL = process.env.REACT_APP_API_URL;
 
@@ -117,6 +119,39 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
   const [locMode, setLocMode] = useState('current'); // 'current' | 'spot' | 'pin'
   const [spotId, setSpotId] = useState('');
   const [pinPos, setPinPos] = useState(null);
+
+  // optional photo on the report
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+
+  const handlePhotoSelect = (e) =>
+  {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/'))
+    {
+      setSubmitStatus('error');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024)
+    {
+      setSubmitStatus('error');
+      return;
+    }
+    setSubmitStatus(null);
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const clearPhoto = () =>
+  {
+    if (photoPreview)
+    {
+      URL.revokeObjectURL(photoPreview);
+    }
+    setPhotoFile(null);
+    setPhotoPreview(null);
+  };
   const { isLoaded: mapLoaded } = useJsApiLoader({ googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY });
 
   const submitReport = async () =>
@@ -159,10 +194,32 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
     setSubmitting(true);
     setSubmitStatus(null);
 
+    // upload the photo first (if any), so its URL goes on the report
+    let photoUrl = null;
+    if (photoFile)
+    {
+      try
+      {
+        const safeName = photoFile.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+        const path = `incident-photos/${firebaseUid || 'anon'}/${Date.now()}_${safeName}`;
+        const storageRef = ref(storage, path);
+        await uploadBytes(storageRef, photoFile);
+        photoUrl = await getDownloadURL(storageRef);
+      }
+      catch (err)
+      {
+        console.error('Photo upload failed:', err);
+        setSubmitStatus('error');
+        setSubmitting(false);
+        return;
+      }
+    }
+
     const payload = {
       type: reportType,
       title: reportTitle.trim(),
       description: reportDesc.trim() || null,
+      photo_url: photoUrl,
       lat,
       lng,
       severity: reportSeverity,
@@ -188,6 +245,12 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
       setLocMode('current');
       setSpotId('');
       setPinPos(null);
+      if (photoPreview)
+      {
+        URL.revokeObjectURL(photoPreview);
+      }
+      setPhotoFile(null);
+      setPhotoPreview(null);
     }
     catch (err)
     {
@@ -296,6 +359,9 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
                   <p className={`text-sm font-medium ${c.text}`}>{alert.type}</p>
                 </div>
                 {alert.location_text && <p className="text-xs text-neutral-400">{alert.location_text}</p>}
+                {alert.photo_url && (
+                  <img src={alert.photo_url} alt="" className="w-full h-28 object-cover rounded-xl mt-2" />
+                )}
                 <div className="flex justify-between mt-1">
                   <p className="text-xs text-neutral-500">{timeAgo(alert.created_at)}</p>
                   {dist != null && <p className="text-xs text-neutral-500">{dist.toFixed(1)} mi</p>}
@@ -369,6 +435,35 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
               placeholder="Add anything helpful"
               className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-3 py-2 text-white text-sm outline-none placeholder-neutral-500 resize-none"
             />
+          </div>
+
+          {/* Photo (optional) */}
+          <div>
+            <p className="text-xs text-neutral-400 mb-1">Photo (optional)</p>
+            {photoPreview ? (
+              <div className="relative">
+                <img src={photoPreview} alt="preview" className="w-full h-32 object-cover rounded-xl" />
+                <button
+                  onClick={clearPhoto}
+                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 text-white flex items-center justify-center"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <label className="flex items-center justify-center gap-2 w-full bg-neutral-900 border border-dashed border-neutral-700 rounded-xl px-3 py-3 text-neutral-400 text-sm cursor-pointer active:bg-neutral-800">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+                Add a photo
+                <input type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
+              </label>
+            )}
           </div>
 
           {/* Severity */}
