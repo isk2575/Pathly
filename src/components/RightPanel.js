@@ -1,6 +1,20 @@
 import { useState, useEffect } from 'react';
+import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 
 const API_URL = process.env.REACT_APP_API_URL;
+
+// centre the pin-drop mini-map on UH
+const UH_CENTER = { lat: 29.7199, lng: -95.3422 };
+
+// compact dark style for the pin-drop mini-map
+const MINI_DARK = [
+  { elementType: 'geometry', stylers: [{ color: '#1d1d1d' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#8a8a8a' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#1d1d1d' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2a2a2a' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#141414' }] },
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+];
 
 // map DB severity → flat alert accent colors (dot + label)
 const severityStyles = {
@@ -32,7 +46,7 @@ function milesBetween(a, b)
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
-export default function RightPanel({ darkMode, isMobile = false, isOpen = true, onClose, userLocation, firebaseUid })
+export default function RightPanel({ darkMode, isMobile = false, isOpen = true, onClose, userLocation, firebaseUid, locations = [] })
 {
   const [desktopOpen, setDesktopOpen] = useState(true);
   const [alerts, setAlerts] = useState([]);
@@ -88,9 +102,44 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
   const [submitting, setSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null); // null | 'success' | 'error'
 
+  // where the incident happened
+  const [locMode, setLocMode] = useState('current'); // 'current' | 'spot' | 'pin'
+  const [spotId, setSpotId] = useState('');
+  const [pinPos, setPinPos] = useState(null);
+  const { isLoaded: mapLoaded } = useJsApiLoader({ googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY });
+
   const submitReport = async () =>
   {
     if (!reportTitle.trim())
+    {
+      setSubmitStatus('error');
+      return;
+    }
+
+    // resolve where it happened
+    let lat = null;
+    let lng = null;
+    if (locMode === 'current' && userLocation)
+    {
+      lat = userLocation.lat;
+      lng = userLocation.lng;
+    }
+    else if (locMode === 'spot')
+    {
+      const loc = locations.find((l) => String(l.id) === spotId);
+      if (loc)
+      {
+        lat = loc.lat;
+        lng = loc.lng;
+      }
+    }
+    else if (locMode === 'pin' && pinPos)
+    {
+      lat = pinPos.lat;
+      lng = pinPos.lng;
+    }
+
+    if (lat == null)
     {
       setSubmitStatus('error');
       return;
@@ -103,8 +152,8 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
       type: reportType,
       title: reportTitle.trim(),
       description: reportDesc.trim() || null,
-      lat: userLocation ? userLocation.lat : null,
-      lng: userLocation ? userLocation.lng : null,
+      lat,
+      lng,
       severity: reportSeverity,
       firebase_uid: firebaseUid || null,
     };
@@ -125,6 +174,9 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
       setReportDesc('');
       setReportSeverity('warning');
       setReportType(REPORT_TYPES[0]);
+      setLocMode('current');
+      setSpotId('');
+      setPinPos(null);
     }
     catch (err)
     {
@@ -310,10 +362,70 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
             </div>
           </div>
 
-          {/* Location note */}
-          <p className="text-xs text-neutral-500">
-            {userLocation ? 'Reported at your current location.' : 'No location yet — report will have no map pin.'}
-          </p>
+          {/* Where did it happen? */}
+          <div>
+            <p className="text-xs text-neutral-400 mb-2">Where did it happen?</p>
+
+            <div className="flex gap-2 mb-2">
+              {[
+                { key: 'current', label: 'My location' },
+                { key: 'spot', label: 'Campus spot' },
+                { key: 'pin', label: 'Drop a pin' },
+              ].map((m) => (
+                <button
+                  key={m.key}
+                  onClick={() => setLocMode(m.key)}
+                  className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                    locMode === m.key ? 'bg-white text-black' : 'bg-neutral-900 text-neutral-400'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+
+            {locMode === 'current' && (
+              <p className="text-xs text-neutral-500">
+                {userLocation ? 'Using your current GPS location.' : 'Location unavailable right now — pick another option.'}
+              </p>
+            )}
+
+            {locMode === 'spot' && (
+              <select
+                value={spotId}
+                onChange={(e) => setSpotId(e.target.value)}
+                className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-3 py-2 text-white text-sm outline-none"
+              >
+                <option value="" className="bg-neutral-900">Select a place...</option>
+                {locations.map((loc) => (
+                  <option key={loc.id} value={loc.id} className="bg-neutral-900">{loc.name}</option>
+                ))}
+              </select>
+            )}
+
+            {locMode === 'pin' && (
+              <div>
+                {mapLoaded ? (
+                  <div className="rounded-xl overflow-hidden border border-neutral-700">
+                    <GoogleMap
+                      mapContainerStyle={{ width: '100%', height: '180px' }}
+                      center={pinPos || userLocation || UH_CENTER}
+                      zoom={16}
+                      onClick={(e) => setPinPos({ lat: e.latLng.lat(), lng: e.latLng.lng() })}
+                      options={{ disableDefaultUI: true, gestureHandling: 'greedy', styles: MINI_DARK, clickableIcons: false }}
+                    >
+                      {pinPos && <Marker position={pinPos} />}
+                    </GoogleMap>
+                  </div>
+                ) : (
+                  <p className="text-xs text-neutral-500">Loading map…</p>
+                )}
+                <p className="text-xs text-neutral-500 mt-1">
+                  {pinPos ? 'Pin placed. Tap again to move it.' : 'Tap the map where it happened.'}
+                </p>
+              </div>
+            )}
+          </div>
 
           {/* Submit — white pill */}
           <button

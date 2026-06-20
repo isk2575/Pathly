@@ -320,7 +320,7 @@ export default function Map()
             onRequestRoute={requestRoute}
             onStartNavigation={() => setIsNavigating(true)}
           />
-          <RightPanel darkMode={darkMode} userLocation={userLocation} firebaseUid={user?.uid} />
+          <RightPanel darkMode={darkMode} userLocation={userLocation} firebaseUid={user?.uid} locations={locations} />
           <BottomBar darkMode={darkMode} />
         </>
       )}
@@ -472,6 +472,7 @@ export default function Map()
             onClose={() => setShowRightPanel(false)}
             userLocation={userLocation}
             firebaseUid={user?.uid}
+            locations={locations}
           />
         </>
       )}
