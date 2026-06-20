@@ -32,7 +32,7 @@ function milesBetween(a, b)
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
-export default function RightPanel({ darkMode, isMobile = false, isOpen = true, onClose, userLocation })
+export default function RightPanel({ darkMode, isMobile = false, isOpen = true, onClose, userLocation, firebaseUid })
 {
   const [desktopOpen, setDesktopOpen] = useState(true);
   const [alerts, setAlerts] = useState([]);
@@ -77,6 +77,65 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
   {
     blueLightLabel = `${blueLights.length} on campus`;
   }
+
+  // ── Report an incident ──────────────────────────────────────────────
+  const REPORT_TYPES = ["Suspicious Activity", "Theft", "Harassment", "Hazard", "Poor Lighting", "Other"];
+  const [showReport, setShowReport] = useState(false);
+  const [reportType, setReportType] = useState(REPORT_TYPES[0]);
+  const [reportTitle, setReportTitle] = useState('');
+  const [reportDesc, setReportDesc] = useState('');
+  const [reportSeverity, setReportSeverity] = useState('warning');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState(null); // null | 'success' | 'error'
+
+  const submitReport = async () =>
+  {
+    if (!reportTitle.trim())
+    {
+      setSubmitStatus('error');
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitStatus(null);
+
+    const payload = {
+      type: reportType,
+      title: reportTitle.trim(),
+      description: reportDesc.trim() || null,
+      lat: userLocation ? userLocation.lat : null,
+      lng: userLocation ? userLocation.lng : null,
+      severity: reportSeverity,
+      firebase_uid: firebaseUid || null,
+    };
+
+    try
+    {
+      const res = await fetch(`${API_URL}/reports`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+
+      setSubmitStatus('success');
+      setReportTitle('');
+      setReportDesc('');
+      setReportSeverity('warning');
+      setReportType(REPORT_TYPES[0]);
+    }
+    catch (err)
+    {
+      console.error('Report failed:', err);
+      setSubmitStatus('error');
+    }
+    finally
+    {
+      setSubmitting(false);
+    }
+  };
 
   // shared inner content (safety score + stats + alerts) used by both desktop and mobile
   const panelContent = (
@@ -182,6 +241,118 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
           </div>
         );
       })}
+
+      {/* Report an Incident */}
+      <div className="pt-1 border-t border-white/10 mt-1">
+        {!showReport && (
+          <button
+            onClick={() => { setShowReport(true); setSubmitStatus(null); }}
+            className="relative w-full mt-3 py-3 rounded-xl text-sm font-semibold text-red-300 bg-red-500/10 backdrop-blur-md border border-red-400/30 transition-all hover:bg-red-500/20 hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] flex items-center justify-center gap-2"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            Report an Incident
+          </button>
+        )}
+
+        {showReport && (
+          <div className="mt-3 rounded-2xl p-4 bg-white/5 backdrop-blur-md border border-white/10 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h2 className={`font-semibold text-sm ${darkMode ? 'text-white' : 'text-gray-900'}`}>Report an Incident</h2>
+              <button onClick={() => setShowReport(false)} className="text-gray-400 p-1">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Type */}
+            <div>
+              <p className="text-xs text-gray-400 mb-1">Type</p>
+              <select
+                value={reportType}
+                onChange={(e) => setReportType(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none"
+              >
+                {REPORT_TYPES.map((t) => (
+                  <option key={t} value={t} className="bg-gray-900">{t}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Title */}
+            <div>
+              <p className="text-xs text-gray-400 mb-1">What happened?</p>
+              <input
+                type="text"
+                value={reportTitle}
+                onChange={(e) => setReportTitle(e.target.value)}
+                placeholder="Brief summary"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none placeholder-gray-500"
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <p className="text-xs text-gray-400 mb-1">Details (optional)</p>
+              <textarea
+                value={reportDesc}
+                onChange={(e) => setReportDesc(e.target.value)}
+                rows={2}
+                placeholder="Add anything helpful"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none placeholder-gray-500 resize-none"
+              />
+            </div>
+
+            {/* Severity */}
+            <div>
+              <p className="text-xs text-gray-400 mb-1">Severity</p>
+              <div className="flex gap-2">
+                {[
+                  { key: 'info', label: 'Info', active: 'bg-blue-500/20 border-blue-400/50 text-blue-300' },
+                  { key: 'warning', label: 'Warning', active: 'bg-yellow-500/20 border-yellow-400/50 text-yellow-300' },
+                  { key: 'danger', label: 'Danger', active: 'bg-red-500/20 border-red-400/50 text-red-300' },
+                ].map((s) => (
+                  <button
+                    key={s.key}
+                    onClick={() => setReportSeverity(s.key)}
+                    className={`flex-1 py-2 rounded-xl text-xs font-medium border transition-all ${
+                      reportSeverity === s.key ? s.active : 'bg-white/5 border-white/10 text-gray-400'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Location note */}
+            <p className="text-xs text-gray-500">
+              {userLocation ? 'Reported at your current location.' : 'No location yet — report will have no map pin.'}
+            </p>
+
+            {/* Submit */}
+            <button
+              onClick={submitReport}
+              disabled={submitting || !reportTitle.trim()}
+              className="relative w-full py-3 rounded-xl text-sm font-bold text-white bg-blue-600/80 backdrop-blur-md border border-blue-400/40 disabled:opacity-40 transition-all hover:bg-blue-600 hover:shadow-[0_0_20px_rgba(59,130,246,0.45)] flex items-center justify-center gap-2"
+            >
+              {submitting ? 'Submitting…' : 'Submit Report'}
+            </button>
+
+            {submitStatus === 'success' && (
+              <p className="text-xs text-green-400">Thanks — your report was submitted and is pending review.</p>
+            )}
+            {submitStatus === 'error' && (
+              <p className="text-xs text-red-400">Couldn't submit. Add a summary and try again.</p>
+            )}
+          </div>
+        )}
+      </div>
     </>
   );
 

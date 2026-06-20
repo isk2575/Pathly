@@ -100,6 +100,8 @@ export default function Map()
   const [locations, setLocations] = useState([]);
   const mapRef = useRef(null);
   const [selectedPhone, setSelectedPhone] = useState(null);
+  const [alertCount, setAlertCount] = useState(null);
+  const [hasDanger, setHasDanger] = useState(false);
 
   // detect mobile
   useEffect(() =>
@@ -126,6 +128,20 @@ export default function Map()
       .then((res) => res.json())
       .then((data) => setLocations(data))
       .catch((err) => console.error("Failed to load locations:", err));
+  }, []);
+
+  // active-alert count for the home Campus Safety card
+  useEffect(() =>
+  {
+    fetch(`${API_URL}/incidents`)
+      .then((res) => res.json())
+      .then((data) =>
+      {
+        const list = Array.isArray(data) ? data : [];
+        setAlertCount(list.length);
+        setHasDanger(list.some((a) => a.severity === 'danger'));
+      })
+      .catch((err) => console.error("Failed to load alert count:", err));
   }, []);
 
   // zoom to fit route
@@ -300,7 +316,7 @@ export default function Map()
             onRequestRoute={requestRoute}
             onStartNavigation={() => setIsNavigating(true)}
           />
-          <RightPanel darkMode={darkMode} userLocation={userLocation} />
+          <RightPanel darkMode={darkMode} userLocation={userLocation} firebaseUid={user?.uid} />
           <BottomBar darkMode={darkMode} />
         </>
       )}
@@ -308,26 +324,17 @@ export default function Map()
       {/* MOBILE — Normal mode UI */}
       {!isNavigating && isMobile && (
         <>
-          {/* Mobile Navbar — simplified */}
-          <div className="absolute top-0 left-0 right-0 z-10 bg-gray-950/90 backdrop-blur-md px-4 py-3 flex items-center justify-between border-b border-gray-800/50">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-                  <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7l-9-5z"/>
-                </svg>
-              </div>
-              <div>
-                <p className="text-white font-bold text-sm leading-none">Pathly</p>
-                <p className="text-gray-400 text-xs">Stay Safe. Stay Connected.</p>
-              </div>
-            </div>
+          {/* Mobile header — clean */}
+          <div className="absolute top-0 left-0 right-0 z-10 px-5 pt-3 pb-6 flex items-center justify-between bg-gradient-to-b from-black via-black/60 to-transparent">
+            <h1 className="text-white text-2xl font-extrabold tracking-tight">Pathly</h1>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setDarkMode(!darkMode)}
-                className="p-2 rounded-lg bg-gray-800 text-gray-300"
+                aria-label="Toggle theme"
+                className="w-10 h-10 rounded-full bg-neutral-800 text-white flex items-center justify-center active:bg-neutral-700 transition-colors"
               >
                 {darkMode
-                  ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="12" cy="12" r="5"/>
                       <line x1="12" y1="1" x2="12" y2="3"/>
                       <line x1="12" y1="21" x2="12" y2="23"/>
@@ -338,7 +345,7 @@ export default function Map()
                       <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
                       <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
                     </svg>
-                  : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
                     </svg>
                 }
@@ -346,29 +353,62 @@ export default function Map()
               <button
                 onClick={() => setShowRightPanel(true)}
                 aria-label="Open safety panel"
-                className="p-2 rounded-lg bg-gray-800 text-gray-300"
+                className="relative w-10 h-10 rounded-full bg-neutral-800 text-white flex items-center justify-center active:bg-neutral-700 transition-colors"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="3" y1="6" x2="21" y2="6"/>
-                  <line x1="3" y1="12" x2="21" y2="12"/>
-                  <line x1="3" y1="18" x2="21" y2="18"/>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
                 </svg>
+                {alertCount > 0 && (
+                  <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-blue-500" />
+                )}
               </button>
             </div>
           </div>
 
-          {/* Mobile bottom sheet trigger */}
+          {/* Mobile bottom stack — clean */}
           {!showMobilePanel && (
-            <button
-              onClick={() => setShowMobilePanel(true)}
-              className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 bg-blue-600/80 backdrop-blur-md border border-blue-400/40 hover:bg-blue-600 text-white font-semibold px-8 py-3.5 rounded-2xl shadow-2xl hover:shadow-[0_0_24px_rgba(59,130,246,0.5)] flex items-center gap-2 transition-all"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-                <circle cx="11" cy="11" r="8"/>
-                <path d="m21 21-4.35-4.35"/>
-              </svg>
-              Find Safe Route
-            </button>
+            <div className="absolute bottom-0 left-0 right-0 z-10 px-4 pb-5 space-y-3">
+
+              {/* Campus Safety summary — opens the safety drawer */}
+              <button
+                onClick={() => setShowRightPanel(true)}
+                className="w-full bg-neutral-800 rounded-3xl p-4 flex items-center justify-between text-left active:bg-neutral-700 transition-colors"
+              >
+                <div>
+                  <p className="text-neutral-400 text-sm font-medium">Campus Safety</p>
+                  <p className={`text-2xl font-bold leading-tight ${hasDanger ? 'text-amber-400' : 'text-green-400'}`}>
+                    {hasDanger ? 'Caution' : 'Good'}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                    <span className="text-neutral-400 text-xs">
+                      {alertCount === null ? 'Loading…' : `${alertCount} active alert${alertCount === 1 ? '' : 's'}`}
+                    </span>
+                  </div>
+                </div>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-neutral-500">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </button>
+
+              {/* Find Safe Route — primary white pill */}
+              <button
+                onClick={() => setShowMobilePanel(true)}
+                className="w-full bg-white rounded-full py-4 flex items-center justify-center gap-2.5 active:bg-neutral-200 transition-colors"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2.5">
+                  <circle cx="11" cy="11" r="8"/>
+                  <path d="m21 21-4.35-4.35"/>
+                </svg>
+                <span className="text-black font-bold text-base">Find Safe Route</span>
+              </button>
+
+              {/* SOS */}
+              <div className="flex justify-center pt-1">
+                <SOSButton inline />
+              </div>
+            </div>
           )}
 
           {/* Mobile bottom sheet */}
@@ -432,6 +472,7 @@ export default function Map()
             isOpen={showRightPanel}
             onClose={() => setShowRightPanel(false)}
             userLocation={userLocation}
+            firebaseUid={user?.uid}
           />
         </>
       )}
@@ -454,12 +495,8 @@ export default function Map()
         />
       )}
 
-      {/* SOS — hidden when the mobile sheet is open or during navigation (nav renders its own) */}
-      <div className={`transition-all duration-300 ${
-        (showMobilePanel && isMobile) || isNavigating ? 'hidden' : ''
-      }`}>
-        <SOSButton />
-      </div>
+      {/* SOS — desktop main screen only (mobile renders it in the bottom stack; nav renders its own) */}
+      {!isMobile && !isNavigating && <SOSButton />}
 
     </div>
   );
