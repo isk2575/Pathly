@@ -260,6 +260,10 @@ export default function Map()
           styles: isNavigating ? darkStyles : darkMode ? darkStyles : [],
           disableDefaultUI: isNavigating,
           zoomControl: !isNavigating && !isMobile,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+          clickableIcons: false,
         }}
         onLoad={(map) =>
         {
@@ -370,6 +374,11 @@ export default function Map()
           {!showMobilePanel && (
             <div className="absolute bottom-0 left-0 right-0 z-10 px-4 pb-5 space-y-3">
 
+              {/* SOS */}
+              <div className="flex justify-center pb-1">
+                <SOSButton inline />
+              </div>
+
               {/* Campus Safety summary — opens the safety drawer */}
               <button
                 onClick={() => setShowRightPanel(true)}
@@ -403,33 +412,26 @@ export default function Map()
                 </svg>
                 <span className="text-black font-bold text-base">Find Safe Route</span>
               </button>
-
-              {/* SOS */}
-              <div className="flex justify-center pt-1">
-                <SOSButton inline />
-              </div>
             </div>
           )}
 
           {/* Mobile bottom sheet */}
           {showMobilePanel && (
-            <div className="absolute bottom-0 left-0 right-0 z-10 bg-gray-900/60 backdrop-blur-2xl rounded-t-3xl border-t border-white/10 shadow-2xl">
-              {/* top sheen */}
-              <span className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 z-10 bg-neutral-900 rounded-t-3xl border-t border-neutral-800">
 
               {/* Handle */}
               <div className="flex justify-center pt-3 pb-1">
-                <div className="w-10 h-1 bg-white/30 rounded-full" />
+                <div className="w-10 h-1 bg-neutral-700 rounded-full" />
               </div>
 
               {/* Close button */}
               <div className="flex items-center justify-between px-5 py-2">
-                <h2 className="text-white font-bold text-base">Find Safe Route</h2>
+                <h2 className="text-white font-bold text-lg">Find Safe Route</h2>
                 <button
                   onClick={() => setShowMobilePanel(false)}
-                  className="text-gray-400 p-1"
+                  className="w-9 h-9 rounded-full bg-neutral-800 text-neutral-400 flex items-center justify-center active:bg-neutral-700"
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <line x1="18" y1="6" x2="6" y2="18"/>
                     <line x1="6" y1="6" x2="18" y2="18"/>
                   </svg>
@@ -437,29 +439,26 @@ export default function Map()
               </div>
 
               {/* Route finder content */}
-              <div className="px-5 pb-8 flex flex-col gap-4">
+              <div className="px-5 pb-8 flex flex-col gap-3">
 
                 {/* From */}
-                <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-4">
-                  <p className="text-xs text-gray-400 mb-1">From</p>
+                <div className="bg-neutral-800 rounded-2xl p-4">
+                  <p className="text-xs text-neutral-400 mb-1">From</p>
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.9)]" />
+                    <div className="w-2 h-2 rounded-full bg-blue-500" />
                     <span className="text-white text-sm font-medium">My Current Location</span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-0.5 ml-4">GPS location</p>
+                  <p className="text-xs text-neutral-500 mt-0.5 ml-4">GPS location</p>
                 </div>
 
-                {/* To */}
-                <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-4">
-                  <p className="text-xs text-gray-400 mb-2">To</p>
-                  <MobilePanel
-                    darkMode={darkMode}
-                    userLocation={userLocation}
-                    locations={locations}
-                    onRequestRoute={requestRoute}
-                    onStartNavigation={() => { setShowMobilePanel(false); setIsNavigating(true); }}
-                  />
-                </div>
+                {/* Destination + route options */}
+                <MobilePanel
+                  darkMode={darkMode}
+                  userLocation={userLocation}
+                  locations={locations}
+                  onRequestRoute={requestRoute}
+                  onStartNavigation={() => { setShowMobilePanel(false); setIsNavigating(true); }}
+                />
 
               </div>
             </div>
