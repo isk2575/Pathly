@@ -119,6 +119,7 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
   const [locMode, setLocMode] = useState('current'); // 'current' | 'spot' | 'pin'
   const [spotId, setSpotId] = useState('');
   const [pinPos, setPinPos] = useState(null);
+  const [mapCenter, setMapCenter] = useState(UH_CENTER); // controls the pin-drop map view
 
   // optional photo on the report
   const [photoFile, setPhotoFile] = useState(null);
@@ -245,6 +246,7 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
       setLocMode('current');
       setSpotId('');
       setPinPos(null);
+      setMapCenter(UH_CENTER);
       if (photoPreview)
       {
         URL.revokeObjectURL(photoPreview);
@@ -535,8 +537,14 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
                   <div className="rounded-xl overflow-hidden border border-neutral-700">
                     <GoogleMap
                       mapContainerStyle={{ width: '100%', height: '200px' }}
-                      onLoad={(map) => { map.setCenter(UH_CENTER); map.setZoom(16); }}
-                      onClick={(e) => setPinPos({ lat: e.latLng.lat(), lng: e.latLng.lng() })}
+                      center={mapCenter}
+                      zoom={16}
+                      onClick={(e) =>
+                      {
+                        const point = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+                        setPinPos(point);
+                        setMapCenter(point);
+                      }}
                       options={{ disableDefaultUI: true, gestureHandling: 'greedy', styles: MINI_DARK, clickableIcons: false }}
                     >
                       {userLocation && (
