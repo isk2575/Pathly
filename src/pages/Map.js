@@ -134,6 +134,7 @@ export default function Map()
   const [hasDanger, setHasDanger] = useState(false);
   const [alerts, setAlerts] = useState([]);
   const [selectedAlert, setSelectedAlert] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // detect mobile
   useEffect(() =>
@@ -152,6 +153,47 @@ export default function Map()
     });
     return () => unsubscribe();
   }, []);
+
+  // ask the backend whether this signed-in account is an admin.
+  // we re-run whenever the user changes (login / logout) so the
+  // delete controls only ever show up for allowlisted accounts.
+  useEffect(() =>
+  {
+    if (!user)
+    {
+      setIsAdmin(false);
+      return;
+    }
+
+    fetch(`${API_URL}/admin/check?firebase_uid=${user.uid}`)
+      .then((res) => res.json())
+      .then((data) => setIsAdmin(data.is_admin === true))
+      .catch(() => setIsAdmin(false));
+  }, [user]);
+
+  // soft-delete an ACTIVE alert straight from its map popup.
+  // the backend flips is_deleted=true (the row stays for the audit
+  // trail), and /incidents already filters those out. but the map
+  // was fetched once on load, so we ALSO drop it from local state
+  // here — that's what makes the pin vanish instantly instead of
+  // waiting for a reload.
+  const deleteAlert = (id) =>
+  {
+    if (!user) return;
+
+    fetch(`${API_URL}/admin/incidents/${id}/delete?firebase_uid=${user.uid}`, { method: 'POST' })
+      .then((res) =>
+      {
+        if (!res.ok) throw new Error('delete failed');
+        return res.json();
+      })
+      .then(() =>
+      {
+        setAlerts((prev) => prev.filter((a) => a.id !== id));
+        setSelectedAlert(null);
+      })
+      .catch((err) => console.error('Could not delete alert:', err));
+  };
 
   // load pickable destinations from the backend
   useEffect(() =>
@@ -367,6 +409,14 @@ export default function Map()
                 <img src={selectedAlert.photo_url} alt="" style={{ width: '100%', borderRadius: '8px', marginBottom: '4px' }} />
               )}
               <div style={{ fontSize: '11px', color: '#888' }}>{timeAgo(selectedAlert.created_at)}</div>
+              {isAdmin && (
+                <button
+                  onClick={() => deleteAlert(selectedAlert.id)}
+                  style={{ marginTop: '8px', width: '100%', padding: '6px 0', fontSize: '12px', fontWeight: 600, color: '#fff', background: '#ef4444', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
+                >
+                  Delete alert
+                </button>
+              )}
             </div>
           </InfoWindow>
         )}
