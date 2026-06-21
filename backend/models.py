@@ -81,6 +81,7 @@ class Incident(Base):
     description: Mapped[Optional[str]] = mapped_column(Text)
     location_text: Mapped[Optional[str]] = mapped_column(String(160))  # "Near Parking Lot B"
     photo_url: Mapped[Optional[str]] = mapped_column(String)  # Firebase Storage download URL
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)  # soft delete — row stays in DB
     lat: Mapped[Optional[float]] = mapped_column(Float)
     lng: Mapped[Optional[float]] = mapped_column(Float)
     severity: Mapped[Severity] = mapped_column(Enum(Severity), default=Severity.warning)

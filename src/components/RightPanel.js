@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
-import { storage } from '../Firebase';
+import { auth, storage } from '../Firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { signOut } from 'firebase/auth';
 
 const API_URL = process.env.REACT_APP_API_URL;
 
@@ -65,6 +66,8 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
   const [alerts, setAlerts] = useState([]);
   const [blueLights, setBlueLights] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [pending, setPending] = useState([]);
 
   // live alerts from the database
   useEffect(() =>
@@ -83,6 +86,60 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
       .then((data) => setBlueLights(Array.isArray(data) ? data : []))
       .catch((err) => console.error("Failed to load blue lights:", err));
   }, []);
+
+  // is this user an admin? if so, load the pending-review queue
+  useEffect(() =>
+  {
+    if (!firebaseUid)
+    {
+      setIsAdmin(false);
+      setPending([]);
+      return;
+    }
+    fetch(`${API_URL}/admin/check?firebase_uid=${encodeURIComponent(firebaseUid)}`)
+      .then((res) => res.json())
+      .then((data) =>
+      {
+        const admin = !!(data && data.is_admin);
+        setIsAdmin(admin);
+        if (admin)
+        {
+          fetch(`${API_URL}/admin/pending?firebase_uid=${encodeURIComponent(firebaseUid)}`)
+            .then((r) => r.json())
+            .then((list) => setPending(Array.isArray(list) ? list : []))
+            .catch((err) => console.error('Failed to load pending reports:', err));
+        }
+      })
+      .catch((err) => console.error('Admin check failed:', err));
+  }, [firebaseUid]);
+
+  const approveReport = async (id) =>
+  {
+    try
+    {
+      const res = await fetch(`${API_URL}/admin/incidents/${id}/approve?firebase_uid=${encodeURIComponent(firebaseUid)}`, { method: 'POST' });
+      if (!res.ok) throw new Error(`Approve failed: ${res.status}`);
+      setPending((prev) => prev.filter((r) => r.id !== id));
+    }
+    catch (err)
+    {
+      console.error('Approve failed:', err);
+    }
+  };
+
+  const deleteReport = async (id) =>
+  {
+    try
+    {
+      const res = await fetch(`${API_URL}/admin/incidents/${id}/delete?firebase_uid=${encodeURIComponent(firebaseUid)}`, { method: 'POST' });
+      if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
+      setPending((prev) => prev.filter((r) => r.id !== id));
+    }
+    catch (err)
+    {
+      console.error('Delete failed:', err);
+    }
+  };
 
   // how many blue lights are near the user — or the campus total if we have no location
   const NEARBY_MILES = 0.3;
@@ -268,6 +325,58 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
   // shared inner content (safety score + stats + alerts + report) used by both desktop and mobile
   const panelContent = (
     <>
+      {isAdmin && (
+        <div className="bg-neutral-800 rounded-2xl p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-amber-400">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </span>
+            <h2 className="text-white font-semibold text-sm">Pending review</h2>
+            <span className="text-xs text-neutral-300 bg-neutral-900 rounded-full px-2 py-0.5 ml-auto">{pending.length}</span>
+          </div>
+
+          {pending.length === 0 ? (
+            <p className="text-xs text-neutral-500">No reports waiting for review.</p>
+          ) : (
+            <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
+              {pending.map((r) =>
+              {
+                const c = severityStyles[r.severity] || severityStyles.warning;
+                return (
+                  <div key={r.id} className="bg-neutral-900 rounded-xl p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`w-2 h-2 rounded-full ${c.dot}`} />
+                      <p className="text-sm font-medium text-white">{r.type}</p>
+                      <span className="text-xs text-neutral-500 ml-auto">{timeAgo(r.created_at)}</span>
+                    </div>
+                    <p className="text-xs text-neutral-300">{r.title}</p>
+                    {r.description && <p className="text-xs text-neutral-500 mt-0.5">{r.description}</p>}
+                    {r.location_text && <p className="text-xs text-neutral-500 mt-0.5">{r.location_text}</p>}
+                    {r.photo_url && <img src={r.photo_url} alt="" className="w-full h-24 object-cover rounded-lg mt-2" />}
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => approveReport(r.id)}
+                        className="flex-1 py-2 rounded-lg bg-green-500 text-black text-xs font-semibold active:bg-green-600"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => deleteReport(r.id)}
+                        className="flex-1 py-2 rounded-lg border border-neutral-700 text-red-400 text-xs font-semibold active:bg-neutral-800"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Safety score + stats card */}
       <div className="bg-neutral-800 rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3">
@@ -587,6 +696,21 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
           )}
         </div>
       )}
+
+      {/* Log out — bottom right */}
+      <div className="flex justify-end pt-3 mt-1 border-t border-neutral-800">
+        <button
+          onClick={() => signOut(auth).catch((err) => console.error('Logout failed:', err))}
+          className="flex items-center gap-2 text-neutral-400 text-sm font-medium px-3 py-2 rounded-xl active:bg-neutral-800"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          Log out
+        </button>
+      </div>
     </>
   );
 

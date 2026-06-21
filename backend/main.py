@@ -78,6 +78,45 @@ def nearest_node(lat, lng):
     return best_id
 
 
+def edge_points(u, v):
+    """Geometry points for edge u->v as [{lat,lng}], following the real path shape.
+
+    The builder flattens each edge's OSM geometry into a 'pts' string
+    ("lat,lng;lat,lng;..."). Here we parse it and orient it u->v.
+    Returns None if the edge has no stored geometry.
+    """
+    data = graph.get_edge_data(u, v)
+    if not data:
+        return None
+
+    # multigraph: pick the cheapest parallel edge (matches what Dijkstra used)
+    if IS_MULTI:
+        edge = min(data.values(), key=lambda e: float(e.get("safe_cost", e.get("length", 1e18))))
+    else:
+        edge = data
+
+    pts = edge.get("pts")
+    if not pts:
+        return None
+
+    points = []
+    for pair in pts.split(";"):
+        lat_str, lng_str = pair.split(",")
+        points.append({"lat": float(lat_str), "lng": float(lng_str)})
+
+    if len(points) < 2:
+        return points
+
+    # 'pts' may be stored u->v or v->u; orient it so it starts at u
+    u_lat, u_lng = graph.nodes[u]["y"], graph.nodes[u]["x"]
+    v_lat, v_lng = graph.nodes[v]["y"], graph.nodes[v]["x"]
+    d_first_u = (points[0]["lat"] - u_lat) ** 2 + (points[0]["lng"] - u_lng) ** 2
+    d_first_v = (points[0]["lat"] - v_lat) ** 2 + (points[0]["lng"] - v_lng) ** 2
+    if d_first_v < d_first_u:
+        points.reverse()
+    return points
+
+
 def build_route(start_lat, start_lng, end_lat, end_lng, weight_attr):
     origin = nearest_node(start_lat, start_lng)
     destination = nearest_node(end_lat, end_lng)
@@ -87,7 +126,27 @@ def build_route(start_lat, start_lng, end_lat, end_lng, weight_attr):
         node_ids = nx.shortest_path(graph, origin, destination, weight=weight_attr)
     except nx.NetworkXNoPath:
         return None
-    return [{"lat": graph.nodes[n]["y"], "lng": graph.nodes[n]["x"]} for n in node_ids]
+
+    if len(node_ids) == 1:
+        n = node_ids[0]
+        return [{"lat": graph.nodes[n]["y"], "lng": graph.nodes[n]["x"]}]
+
+    # stitch each edge's real geometry together into one smooth polyline
+    coords = []
+    for i in range(len(node_ids) - 1):
+        u, v = node_ids[i], node_ids[i + 1]
+        seg = edge_points(u, v)
+        if not seg:
+            # straight fallback if this edge has no stored geometry
+            seg = [
+                {"lat": graph.nodes[u]["y"], "lng": graph.nodes[u]["x"]},
+                {"lat": graph.nodes[v]["y"], "lng": graph.nodes[v]["x"]},
+            ]
+        if coords and seg and coords[-1] == seg[0]:
+            coords.extend(seg[1:])   # avoid duplicating the shared node
+        else:
+            coords.extend(seg)
+    return coords
 
 
 def active_incident_points(db: Session):
@@ -96,6 +155,7 @@ def active_incident_points(db: Session):
         db.query(Incident)
         .filter(
             Incident.status == IncidentStatus.active,
+            Incident.is_deleted.isnot(True),
             Incident.lat.isnot(None),
             Incident.lng.isnot(None),
         )
@@ -164,7 +224,7 @@ def get_incidents(db: Session = Depends(get_db)):
     """Live alerts for the Campus Alerts panel — active, newest first."""
     return (
         db.query(Incident)
-        .filter(Incident.status == IncidentStatus.active)
+        .filter(Incident.status == IncidentStatus.active, Incident.is_deleted.isnot(True))
         .order_by(Incident.created_at.desc())
         .all()
     )
@@ -215,3 +275,63 @@ def get_fastest_route(start_lat: float, start_lng: float, end_lat: float, end_ln
     if path is None:
         return {"error": "No route found"}
     return {"preference": "fastest", "path": path}
+
+
+# ─── Admin moderation ────────────────────────────────────────────────
+# Admins are identified by their Firebase UID being in the ADMIN_UIDS env var
+# (comma-separated). NOTE: this trusts the uid the client sends — fine for an
+# MVP, but production should verify a Firebase ID token with firebase-admin.
+ADMIN_UIDS = set(u.strip() for u in os.environ.get("ADMIN_UIDS", "").split(",") if u.strip())
+
+
+def is_admin(uid: Optional[str]) -> bool:
+    return bool(uid) and uid in ADMIN_UIDS
+
+
+def require_admin(firebase_uid: Optional[str]):
+    if not is_admin(firebase_uid):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+
+@app.get("/admin/check")
+def admin_check(firebase_uid: str = ""):
+    """Lets the frontend show admin controls only to admins."""
+    return {"is_admin": is_admin(firebase_uid)}
+
+
+@app.get("/admin/pending", response_model=List[schemas.IncidentOut])
+def admin_pending(firebase_uid: str = "", db: Session = Depends(get_db)):
+    """Reports awaiting review (pending, not soft-deleted), newest first."""
+    require_admin(firebase_uid)
+    return (
+        db.query(Incident)
+        .filter(Incident.status == IncidentStatus.pending, Incident.is_deleted.isnot(True))
+        .order_by(Incident.created_at.desc())
+        .all()
+    )
+
+
+@app.post("/admin/incidents/{incident_id}/approve", response_model=schemas.IncidentOut)
+def admin_approve(incident_id: int, firebase_uid: str = "", db: Session = Depends(get_db)):
+    """Approve a report so it goes live on the map and routing."""
+    require_admin(firebase_uid)
+    incident = db.query(Incident).filter(Incident.id == incident_id).first()
+    if incident is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    incident.status = IncidentStatus.active
+    db.commit()
+    db.refresh(incident)
+    return incident
+
+
+@app.post("/admin/incidents/{incident_id}/delete", response_model=schemas.IncidentOut)
+def admin_delete(incident_id: int, firebase_uid: str = "", db: Session = Depends(get_db)):
+    """Soft-delete a report: hidden everywhere, but the row stays in the database."""
+    require_admin(firebase_uid)
+    incident = db.query(Incident).filter(Incident.id == incident_id).first()
+    if incident is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    incident.is_deleted = True
+    db.commit()
+    db.refresh(incident)
+    return incident
