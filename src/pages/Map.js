@@ -87,6 +87,36 @@ const userDotIcon =
     </svg>
   `);
 
+// warning-sign icon for reported alerts, coloured by severity
+const ALERT_COLORS = { danger: '#ef4444', warning: '#f59e0b', info: '#3b82f6' };
+
+const alertIcon = (severity) =>
+{
+  const color = ALERT_COLORS[severity] || ALERT_COLORS.warning;
+  return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
+    <svg width="38" height="38" viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg">
+      <path d="M19 5 L34 32 L4 32 Z" fill="${color}" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/>
+      <rect x="17.3" y="15" width="3.4" height="9" rx="1.7" fill="#ffffff"/>
+      <circle cx="19" cy="28" r="1.9" fill="#ffffff"/>
+    </svg>
+  `);
+};
+
+// "x min ago" for the alert detail popup
+const timeAgo = (iso) =>
+{
+  if (!iso) return '';
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return '';
+  const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs} hr ago`;
+  const days = Math.round(hrs / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+};
+
 export default function Map()
 {
   const [darkMode, setDarkMode] = useState(true);
@@ -102,6 +132,8 @@ export default function Map()
   const [selectedPhone, setSelectedPhone] = useState(null);
   const [alertCount, setAlertCount] = useState(null);
   const [hasDanger, setHasDanger] = useState(false);
+  const [alerts, setAlerts] = useState([]);
+  const [selectedAlert, setSelectedAlert] = useState(null);
 
   // detect mobile
   useEffect(() =>
@@ -138,6 +170,7 @@ export default function Map()
       .then((data) =>
       {
         const list = Array.isArray(data) ? data : [];
+        setAlerts(list);
         setAlertCount(list.length);
         setHasDanger(list.some((a) => a.severity === 'danger'));
       })
@@ -297,6 +330,46 @@ export default function Map()
         )}
 
         <AnimatedRoute path={routePath} isNavigating={isNavigating} />
+
+        {alerts
+          .filter((a) => a.lat != null && a.lng != null)
+          .map((alert) => (
+            <Marker
+              key={`alert-${alert.id}`}
+              position={{ lat: alert.lat, lng: alert.lng }}
+              onClick={() => setSelectedAlert(alert)}
+              icon={{
+                url: alertIcon(alert.severity),
+                scaledSize: { width: 36, height: 36 },
+              }}
+              zIndex={300}
+            />
+          ))}
+
+        {selectedAlert && (
+          <InfoWindow
+            position={{ lat: selectedAlert.lat, lng: selectedAlert.lng }}
+            onCloseClick={() => setSelectedAlert(null)}
+          >
+            <div style={{ maxWidth: '220px', color: '#111' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '9999px', background: ALERT_COLORS[selectedAlert.severity] || ALERT_COLORS.warning, display: 'inline-block' }} />
+                <span style={{ fontWeight: 700, fontSize: '13px' }}>{selectedAlert.type}</span>
+              </div>
+              <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '2px' }}>{selectedAlert.title}</div>
+              {selectedAlert.description && (
+                <div style={{ fontSize: '12px', color: '#444', marginBottom: '4px' }}>{selectedAlert.description}</div>
+              )}
+              {selectedAlert.location_text && (
+                <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>{selectedAlert.location_text}</div>
+              )}
+              {selectedAlert.photo_url && (
+                <img src={selectedAlert.photo_url} alt="" style={{ width: '100%', borderRadius: '8px', marginBottom: '4px' }} />
+              )}
+              <div style={{ fontSize: '11px', color: '#888' }}>{timeAgo(selectedAlert.created_at)}</div>
+            </div>
+          </InfoWindow>
+        )}
 
         {userLocation && (
           <Marker
