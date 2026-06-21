@@ -135,6 +135,13 @@ export default function Map()
   const [alerts, setAlerts] = useState([]);
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  // how many reports are waiting for an admin to approve/delete.
+  // RightPanel owns the actual queue and reports the number up here,
+  // so this count stays correct as the admin works through it.
+  const [pendingCount, setPendingCount] = useState(0);
+  // bumping this number tells RightPanel to force itself open — that's
+  // how the notification reveals the pending section on desktop.
+  const [panelOpenSignal, setPanelOpenSignal] = useState(0);
 
   // detect mobile
   useEffect(() =>
@@ -193,6 +200,15 @@ export default function Map()
         setSelectedAlert(null);
       })
       .catch((err) => console.error('Could not delete alert:', err));
+  };
+
+  // clicking the top-right notification: open the safety panel (the
+  // mobile drawer via showRightPanel, the desktop panel via the signal)
+  // so the admin lands on the "Pending review" section that sits at its top.
+  const openPendingPanel = () =>
+  {
+    setShowRightPanel(true);
+    setPanelOpenSignal((n) => n + 1);
   };
 
   // load pickable destinations from the backend
@@ -432,6 +448,32 @@ export default function Map()
         )}
       </GoogleMap>
 
+      {/* Admin-only: a notification that appears when reports are waiting
+          for review. Tapping it opens the panel to the pending queue.
+          Hidden for everyone else, and hidden when the queue is empty. */}
+      {isAdmin && pendingCount > 0 && (
+        <button
+          onClick={openPendingPanel}
+          className="absolute top-16 right-4 md:top-4 z-[60] flex items-center gap-2.5 bg-neutral-900/95 backdrop-blur border border-neutral-700 rounded-full pl-3 pr-4 py-2 shadow-lg active:scale-95 transition-transform max-w-[calc(100vw-2rem)]"
+        >
+          <span className="relative flex items-center justify-center w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 shrink-0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+              {pendingCount}
+            </span>
+          </span>
+          <span className="text-left leading-tight">
+            <span className="block text-white text-xs font-semibold">New alerts pending review</span>
+            <span className="block text-neutral-400 text-[11px]">
+              {pendingCount} report{pendingCount === 1 ? '' : 's'} — tap to review
+            </span>
+          </span>
+        </button>
+      )}
+
       {/* DESKTOP — Normal mode UI */}
       {!isNavigating && !isMobile && (
         <>
@@ -443,7 +485,7 @@ export default function Map()
             onRequestRoute={requestRoute}
             onStartNavigation={() => setIsNavigating(true)}
           />
-          <RightPanel darkMode={darkMode} userLocation={userLocation} firebaseUid={user?.uid} locations={locations} />
+          <RightPanel darkMode={darkMode} userLocation={userLocation} firebaseUid={user?.uid} locations={locations} openSignal={panelOpenSignal} onPendingCountChange={setPendingCount} />
           <BottomBar darkMode={darkMode} />
         </>
       )}
@@ -596,6 +638,8 @@ export default function Map()
             userLocation={userLocation}
             firebaseUid={user?.uid}
             locations={locations}
+            openSignal={panelOpenSignal}
+            onPendingCountChange={setPendingCount}
           />
         </>
       )}

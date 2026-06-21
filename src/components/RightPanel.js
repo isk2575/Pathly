@@ -59,7 +59,7 @@ function milesBetween(a, b)
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
-export default function RightPanel({ darkMode, isMobile = false, isOpen = true, onClose, userLocation, firebaseUid, locations = [] })
+export default function RightPanel({ darkMode, isMobile = false, isOpen = true, onClose, userLocation, firebaseUid, locations = [], openSignal = 0, onPendingCountChange })
 {
   const [desktopOpen, setDesktopOpen] = useState(true);
   const [alertsOpen, setAlertsOpen] = useState(true);
@@ -112,6 +112,25 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
       })
       .catch((err) => console.error('Admin check failed:', err));
   }, [firebaseUid]);
+
+  // tell the parent how many reports are waiting, so it can show the
+  // notification with an accurate number. this fires on first load AND
+  // every time the queue changes (an approve/delete shrinks `pending`),
+  // so the badge counts down as the admin works — no separate fetch,
+  // one source of truth.
+  useEffect(() =>
+  {
+    if (onPendingCountChange) onPendingCountChange(isAdmin ? pending.length : 0);
+  }, [pending, isAdmin, onPendingCountChange]);
+
+  // the notification bumps openSignal; when it changes we force the
+  // desktop panel open so the pending section is actually visible.
+  // (the mobile drawer is opened by the parent via isOpen instead.)
+  // we skip the initial 0 so the panel isn't forced open on first render.
+  useEffect(() =>
+  {
+    if (openSignal > 0) setDesktopOpen(true);
+  }, [openSignal]);
 
   const approveReport = async (id) =>
   {
