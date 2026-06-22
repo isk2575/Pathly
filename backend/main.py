@@ -5,12 +5,14 @@ from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 import networkx as nx
 
 from database import get_db, init_db
 from models import (
     Location, BlueLight, Incident, User, SavedPlace,
-    Severity, IncidentSource, IncidentStatus,
+    Severity, IncidentSource, IncidentStatus, AlertComment, Confirmation,
 )
 import schemas
 
@@ -221,13 +223,21 @@ def get_bluelights(db: Session = Depends(get_db)):
 
 @app.get("/incidents", response_model=List[schemas.IncidentOut])
 def get_incidents(db: Session = Depends(get_db)):
-    """Live alerts for the Campus Alerts panel — active, newest first."""
-    return (
-        db.query(Incident)
+    """Live alerts for the Campus Alerts panel — active, newest first,
+    each annotated with how many users have confirmed it."""
+    rows = (
+        db.query(Incident, func.count(Confirmation.id))
+        .outerjoin(Confirmation, Confirmation.incident_id == Incident.id)
         .filter(Incident.status == IncidentStatus.active, Incident.is_deleted.isnot(True))
+        .group_by(Incident.id)
         .order_by(Incident.created_at.desc())
         .all()
     )
+    out = []
+    for incident, count in rows:
+        incident.confirmation_count = count  # transient attr the schema reads
+        out.append(incident)
+    return out
 
 
 @app.post("/reports", response_model=schemas.IncidentOut)
@@ -256,6 +266,7 @@ def create_report(payload: schemas.ReportCreate, db: Session = Depends(get_db)):
     db.add(incident)
     db.commit()
     db.refresh(incident)
+    incident.confirmation_count = 0  # brand new — nobody's confirmed yet
     return incident
 
 
@@ -303,12 +314,19 @@ def admin_check(firebase_uid: str = ""):
 def admin_pending(firebase_uid: str = "", db: Session = Depends(get_db)):
     """Reports awaiting review (pending, not soft-deleted), newest first."""
     require_admin(firebase_uid)
-    return (
-        db.query(Incident)
+    rows = (
+        db.query(Incident, func.count(Confirmation.id))
+        .outerjoin(Confirmation, Confirmation.incident_id == Incident.id)
         .filter(Incident.status == IncidentStatus.pending, Incident.is_deleted.isnot(True))
+        .group_by(Incident.id)
         .order_by(Incident.created_at.desc())
         .all()
     )
+    out = []
+    for incident, count in rows:
+        incident.confirmation_count = count
+        out.append(incident)
+    return out
 
 
 @app.post("/admin/incidents/{incident_id}/approve", response_model=schemas.IncidentOut)
@@ -321,6 +339,7 @@ def admin_approve(incident_id: int, firebase_uid: str = "", db: Session = Depend
     incident.status = IncidentStatus.active
     db.commit()
     db.refresh(incident)
+    incident.confirmation_count = count_confirmations(db, incident.id)
     return incident
 
 
@@ -334,4 +353,147 @@ def admin_delete(incident_id: int, firebase_uid: str = "", db: Session = Depends
     incident.is_deleted = True
     db.commit()
     db.refresh(incident)
+    incident.confirmation_count = count_confirmations(db, incident.id)
     return incident
+
+
+# ── Alert discussion (student comments) ──────────────────────────────
+MAX_COMMENT_LEN = 600  # keep comments short and on-topic
+
+
+@app.get("/incidents/{incident_id}/comments", response_model=List[schemas.CommentOut])
+def get_comments(incident_id: int, db: Session = Depends(get_db)):
+    """Public: the discussion thread for an alert, oldest first."""
+    return (
+        db.query(AlertComment)
+        .filter(
+            AlertComment.incident_id == incident_id,
+            AlertComment.is_deleted.isnot(True),
+        )
+        .order_by(AlertComment.created_at.asc())
+        .all()
+    )
+
+
+@app.post("/incidents/{incident_id}/comments", response_model=schemas.CommentOut)
+def create_comment(incident_id: int, payload: schemas.CommentCreate, db: Session = Depends(get_db)):
+    """Auth-gated: a signed-in student posts a comment on an active alert."""
+    # only signed-in users may post
+    if not payload.firebase_uid:
+        raise HTTPException(status_code=401, detail="Sign in to comment")
+
+    body = (payload.body or "").strip()
+    if not body:
+        raise HTTPException(status_code=400, detail="Comment can't be empty")
+    if len(body) > MAX_COMMENT_LEN:
+        raise HTTPException(status_code=400, detail=f"Comment must be under {MAX_COMMENT_LEN} characters")
+
+    # the alert has to exist, be live, and not be deleted
+    incident = db.query(Incident).filter(Incident.id == incident_id).first()
+    if incident is None or incident.is_deleted or incident.status != IncidentStatus.active:
+        raise HTTPException(status_code=404, detail="Alert not found")
+
+    name = (payload.author_name or "").strip() or "Student"
+    comment = AlertComment(
+        incident_id=incident_id,
+        firebase_uid=payload.firebase_uid,
+        author_name=name[:120],
+        body=body,
+    )
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+    return comment
+
+
+@app.post("/admin/comments/{comment_id}/delete", response_model=schemas.CommentOut)
+def admin_delete_comment(comment_id: int, firebase_uid: str = "", db: Session = Depends(get_db)):
+    """Admin moderation: soft-delete a comment (row stays for the audit trail)."""
+    require_admin(firebase_uid)
+    comment = db.query(AlertComment).filter(AlertComment.id == comment_id).first()
+    if comment is None:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    comment.is_deleted = True
+    db.commit()
+    db.refresh(comment)
+    return comment
+
+
+# ── Confirmations / upvotes ──────────────────────────────────────────
+CONFIRM_THRESHOLD = 3  # distinct user confirmations that auto-post a pending report
+
+
+def count_confirmations(db: Session, incident_id: int) -> int:
+    """How many distinct users have confirmed this incident."""
+    return (
+        db.query(func.count(Confirmation.id))
+        .filter(Confirmation.incident_id == incident_id)
+        .scalar()
+    ) or 0
+
+
+@app.get("/incidents/unconfirmed", response_model=List[schemas.IncidentOut])
+def get_unconfirmed(db: Session = Depends(get_db)):
+    """The 'Unconfirmed nearby' feed: user reports that are still pending
+    (not yet posted to the map), each with its confirmation count so the
+    UI can show progress toward the threshold."""
+    rows = (
+        db.query(Incident, func.count(Confirmation.id))
+        .outerjoin(Confirmation, Confirmation.incident_id == Incident.id)
+        .filter(
+            Incident.status == IncidentStatus.pending,
+            Incident.source == IncidentSource.user,
+            Incident.is_deleted.isnot(True),
+        )
+        .group_by(Incident.id)
+        .order_by(Incident.created_at.desc())
+        .all()
+    )
+    out = []
+    for incident, count in rows:
+        incident.confirmation_count = count
+        out.append(incident)
+    return out
+
+
+@app.post("/incidents/{incident_id}/confirm", response_model=schemas.ConfirmResult)
+def confirm_incident(incident_id: int, firebase_uid: str = "", db: Session = Depends(get_db)):
+    """A user confirms an alert ('still happening' / 'I see it too').
+
+    One vote per user (enforced by a unique constraint — a repeat tap is a
+    no-op, not an error). When a pending USER report reaches the threshold
+    of distinct confirmations, it auto-promotes to active and posts to the map."""
+    if not firebase_uid:
+        raise HTTPException(status_code=401, detail="Sign in to confirm")
+
+    incident = db.query(Incident).filter(Incident.id == incident_id).first()
+    if incident is None or incident.is_deleted:
+        raise HTTPException(status_code=404, detail="Alert not found")
+
+    # record the vote; if this user already confirmed, just move on
+    try:
+        db.add(Confirmation(incident_id=incident_id, firebase_uid=firebase_uid))
+        db.commit()
+    except IntegrityError:
+        db.rollback()  # duplicate (incident_id, firebase_uid) — already confirmed
+
+    count = count_confirmations(db, incident_id)
+
+    # auto-promote a pending community report once enough people back it
+    promoted = False
+    if (
+        incident.source == IncidentSource.user
+        and incident.status == IncidentStatus.pending
+        and count >= CONFIRM_THRESHOLD
+    ):
+        incident.status = IncidentStatus.active
+        db.commit()
+        db.refresh(incident)
+        promoted = True
+
+    return schemas.ConfirmResult(
+        incident_id=incident_id,
+        confirmation_count=count,
+        status=incident.status.value if hasattr(incident.status, "value") else str(incident.status),
+        promoted=promoted,
+    )

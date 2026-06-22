@@ -3,7 +3,7 @@ import enum
 from datetime import datetime
 from typing import Optional, List
 
-from sqlalchemy import String, Float, DateTime, ForeignKey, Enum, Text, Boolean
+from sqlalchemy import String, Float, DateTime, ForeignKey, Enum, Text, Boolean, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -92,6 +92,8 @@ class Incident(Base):
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     reporter: Mapped[Optional["User"]] = relationship(back_populates="reports")
+    comments: Mapped[List["AlertComment"]] = relationship(back_populates="incident", cascade="all, delete-orphan")
+    confirmations: Mapped[List["Confirmation"]] = relationship(back_populates="incident", cascade="all, delete-orphan")
 
 
 class SavedPlace(Base):
@@ -119,3 +121,41 @@ class RouteHistory(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
     user: Mapped[Optional["User"]] = relationship(back_populates="routes")
+
+
+class AlertComment(Base):
+    """A student-posted comment on an alert (incident).
+
+    Public read, auth-gated write. Comments are soft-deleted by admins for
+    moderation (is_deleted=True keeps the row for the audit trail), mirroring
+    how incidents are moderated."""
+    __tablename__ = "alert_comments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    incident_id: Mapped[int] = mapped_column(ForeignKey("incidents.id"), index=True)
+    firebase_uid: Mapped[Optional[str]] = mapped_column(String(128))  # who wrote it
+    author_name: Mapped[Optional[str]] = mapped_column(String(120))   # display name shown in the thread
+    body: Mapped[str] = mapped_column(Text)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)  # soft delete — row stays in DB
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+    incident: Mapped["Incident"] = relationship(back_populates="comments")
+
+
+class Confirmation(Base):
+    """A 'this is real / still happening' vote from a user on an alert.
+
+    The unique constraint means one vote per user per incident, so the row
+    count reflects DISTINCT users. Three confirmations on a pending user
+    report auto-promotes it to a live alert (see main.py)."""
+    __tablename__ = "confirmations"
+    __table_args__ = (
+        UniqueConstraint("incident_id", "firebase_uid", name="uq_confirmation_user_incident"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    incident_id: Mapped[int] = mapped_column(ForeignKey("incidents.id"), index=True)
+    firebase_uid: Mapped[str] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+    incident: Mapped["Incident"] = relationship(back_populates="confirmations")
