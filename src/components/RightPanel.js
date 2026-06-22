@@ -8,6 +8,10 @@ const API_URL = process.env.REACT_APP_API_URL;
 
 // centre the pin-drop mini-map on UH
 const UH_CENTER = { lat: 29.7199, lng: -95.3422 };
+// reports must fall within this many miles of campus center. anything
+// further out almost certainly isn't a UH incident, so we reject it
+// rather than dropping a pin in the middle of nowhere. easy to tune.
+const MAX_REPORT_MILES = 2;
 
 // compact dark style for the pin-drop mini-map
 const MINI_DARK = [
@@ -190,11 +194,13 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
   const [reportSeverity, setReportSeverity] = useState('warning');
   const [submitting, setSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null); // null | 'success' | 'error'
+  const [submitErrorMsg, setSubmitErrorMsg] = useState(null); // optional custom error text
 
   // where the incident happened
   const [locMode, setLocMode] = useState('current'); // 'current' | 'spot' | 'pin'
   const [spotId, setSpotId] = useState('');
   const [pinPos, setPinPos] = useState(null);
+  const [pinError, setPinError] = useState(null); // shown when a pin lands too far from campus
   const [mapCenter, setMapCenter] = useState(UH_CENTER); // controls the pin-drop map view
 
   // optional photo on the report
@@ -264,12 +270,25 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
 
     if (lat == null)
     {
+      setSubmitErrorMsg(null);
+      setSubmitStatus('error');
+      return;
+    }
+
+    // final safety net across every mode (current / spot / pin):
+    // refuse anything outside the valid zone so a far-away GPS fix
+    // can't drop an incident 10 miles from campus.
+    const distFromUH = milesBetween(UH_CENTER, { lat, lng });
+    if (distFromUH != null && distFromUH > MAX_REPORT_MILES)
+    {
+      setSubmitErrorMsg('That location is too far from campus. Please choose a UH area or a valid zone.');
       setSubmitStatus('error');
       return;
     }
 
     setSubmitting(true);
     setSubmitStatus(null);
+    setSubmitErrorMsg(null);
 
     // upload the photo first (if any), so its URL goes on the report
     let photoUrl = null;
@@ -322,6 +341,7 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
       setLocMode('current');
       setSpotId('');
       setPinPos(null);
+      setPinError(null);
       setMapCenter(UH_CENTER);
       if (photoPreview)
       {
@@ -666,10 +686,19 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
                     <GoogleMap
                       mapContainerStyle={{ width: '100%', height: '200px' }}
                       center={mapCenter}
-                      zoom={16}
+                      zoom={17}
                       onClick={(e) =>
                       {
                         const point = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+                        const dist = milesBetween(UH_CENTER, point);
+                        // reject taps outside the valid zone — tell the
+                        // user to pick a campus spot and don't place the pin
+                        if (dist != null && dist > MAX_REPORT_MILES)
+                        {
+                          setPinError('That spot is too far from campus. Please choose a UH area or a valid zone.');
+                          return;
+                        }
+                        setPinError(null);
                         setPinPos(point);
                         setMapCenter(point);
                       }}
@@ -694,6 +723,9 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
                 <p className="text-xs text-neutral-500 mt-1">
                   {pinPos ? 'Pin placed. Tap again to move it.' : 'Tap on campus where it happened. The blue dot is you.'}
                 </p>
+                {pinError && (
+                  <p className="text-xs text-red-400 mt-1">{pinError}</p>
+                )}
               </div>
             )}
           </div>
@@ -708,10 +740,10 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
           </button>
 
           {submitStatus === 'success' && (
-            <p className="text-xs text-green-400">Thanks — your report was submitted and is pending review.</p>
+            <p className="text-xs text-green-400">Thanks, your report was submitted and is pending review.</p>
           )}
           {submitStatus === 'error' && (
-            <p className="text-xs text-red-400">Couldn't submit. Add a summary and try again.</p>
+            <p className="text-xs text-red-400">{submitErrorMsg || "Couldn't submit. Add a summary and try again."}</p>
           )}
         </div>
       )}

@@ -362,6 +362,14 @@ export default function Map()
           map.setCenter(uhCenter);
           map.setZoom(16);
         }}
+        onClick={() =>
+        {
+          // tapping empty map closes whatever popup is open (and its
+          // photo). taps inside an InfoWindow or on another marker
+          // don't reach here, so only a tap on the map itself dismisses.
+          setSelectedAlert(null);
+          setSelectedPhone(null);
+        }}
       >
         {blueLightPhones.map((phone) => (
           <Marker
