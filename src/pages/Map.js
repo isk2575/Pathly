@@ -11,6 +11,7 @@ import NavigationMode from '../components/NavigationMode';
 import MobilePanel from '../components/MobilePanel';
 import AnimatedRoute from '../components/AnimatedRoute';
 import AlertDiscussion from '../components/AlertDiscussion';
+import ImageLightbox from '../components/ImageLightbox';
 
 const mapContainerStyle = {
   width: '100%',
@@ -137,6 +138,7 @@ export default function Map()
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [discussionAlert, setDiscussionAlert] = useState(null); // alert whose comment thread is open
   const [confirmedIds, setConfirmedIds] = useState(() => new Set()); // alerts this user confirmed this session
+  const [lightboxSrc, setLightboxSrc] = useState(null); // full-size image overlay
   const [isAdmin, setIsAdmin] = useState(false);
   // how many reports are waiting for an admin to approve/delete.
   // RightPanel owns the actual queue and reports the number up here,
@@ -239,6 +241,17 @@ export default function Map()
         setSelectedAlert((prev) => (prev && prev.id === id ? { ...prev, confirmation_count: data.confirmation_count } : prev));
       })
       .catch((err) => console.error('Could not confirm alert:', err));
+  };
+
+  // snap the camera back to campus (used by the recenter button). same
+  // framing as the opening shot, available anytime now that the map roams free.
+  const recenterOnUH = () =>
+  {
+    if (mapRef.current)
+    {
+      mapRef.current.panTo(uhCenter);
+      mapRef.current.setZoom(16);
+    }
   };
 
   // load pickable destinations from the backend
@@ -374,10 +387,9 @@ export default function Map()
       <GoogleMap
         mapContainerStyle={mapContainerStyle}
         options={{
-          restriction: isNavigating ? null : {
-            latLngBounds: uhBounds,
-            strictBounds: false,
-          },
+          // no bounds fence — the map opens focused on UH (see onLoad) but
+          // the user can freely pan/zoom out from there, like nav mode. the
+          // recenter button brings them back to campus on demand.
           styles: isNavigating ? darkStyles : darkMode ? darkStyles : [],
           disableDefaultUI: isNavigating,
           zoomControl: !isNavigating && !isMobile,
@@ -462,7 +474,7 @@ export default function Map()
                 <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>{selectedAlert.location_text}</div>
               )}
               {selectedAlert.photo_url && (
-                <img src={selectedAlert.photo_url} alt="" style={{ width: '100%', height: '120px', objectFit: 'cover', background: '#f3f4f6', borderRadius: '8px', marginBottom: '4px' }} />
+                <img src={selectedAlert.photo_url} alt="" onClick={() => setLightboxSrc(selectedAlert.photo_url)} style={{ width: '100%', height: '120px', objectFit: 'cover', background: '#f3f4f6', borderRadius: '8px', marginBottom: '4px', cursor: 'pointer' }} />
               )}
               <div style={{ fontSize: '11px', color: '#888' }}>{timeAgo(selectedAlert.created_at)}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
@@ -511,8 +523,23 @@ export default function Map()
         )}
       </GoogleMap>
 
-      {/* Per-alert discussion thread — opens from an alert's popup.
-          Fixed overlay, so it floats above both map and panels. */}
+      {/* Recenter on campus — the map roams free now, this brings it home.
+          Hidden in navigation mode, which drives the camera itself. */}
+      {!isNavigating && (
+        <button
+          onClick={recenterOnUH}
+          aria-label="Recenter on campus"
+          className="absolute right-4 top-1/2 -translate-y-1/2 z-[55] w-11 h-11 rounded-full bg-neutral-900/90 backdrop-blur border border-neutral-700 text-white flex items-center justify-center shadow-lg active:bg-neutral-800"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="3" />
+            <line x1="12" y1="2" x2="12" y2="5" />
+            <line x1="12" y1="19" x2="12" y2="22" />
+            <line x1="2" y1="12" x2="5" y2="12" />
+            <line x1="19" y1="12" x2="22" y2="12" />
+          </svg>
+        </button>
+      )}
       {discussionAlert && (
         <AlertDiscussion
           alert={discussionAlert}
@@ -522,6 +549,8 @@ export default function Map()
           onClose={() => setDiscussionAlert(null)}
         />
       )}
+
+      <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
 
       {/* Admin-only: a notification that appears when reports are waiting
           for review. Tapping it opens the panel to the pending queue.
@@ -543,7 +572,7 @@ export default function Map()
           <span className="text-left leading-tight">
             <span className="block text-white text-xs font-semibold">New alerts pending review</span>
             <span className="block text-neutral-400 text-[11px]">
-              {pendingCount} report{pendingCount === 1 ? '' : 's'} — tap to review
+              {pendingCount} report{pendingCount === 1 ? '' : 's'}, tap to review
             </span>
           </span>
         </button>
@@ -560,7 +589,7 @@ export default function Map()
             onRequestRoute={requestRoute}
             onStartNavigation={() => setIsNavigating(true)}
           />
-          <RightPanel darkMode={darkMode} userLocation={userLocation} firebaseUid={user?.uid} locations={locations} openSignal={panelOpenSignal} onPendingCountChange={setPendingCount} onOpenDiscussion={setDiscussionAlert} />
+          <RightPanel darkMode={darkMode} userLocation={userLocation} firebaseUid={user?.uid} locations={locations} openSignal={panelOpenSignal} onPendingCountChange={setPendingCount} onOpenDiscussion={setDiscussionAlert} onImageClick={setLightboxSrc} />
           <BottomBar darkMode={darkMode} />
         </>
       )}
@@ -716,6 +745,7 @@ export default function Map()
             openSignal={panelOpenSignal}
             onPendingCountChange={setPendingCount}
             onOpenDiscussion={setDiscussionAlert}
+            onImageClick={setLightboxSrc}
           />
         </>
       )}

@@ -63,7 +63,7 @@ function milesBetween(a, b)
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
-export default function RightPanel({ darkMode, isMobile = false, isOpen = true, onClose, userLocation, firebaseUid, locations = [], openSignal = 0, onPendingCountChange, onOpenDiscussion })
+export default function RightPanel({ darkMode, isMobile = false, isOpen = true, onClose, userLocation, firebaseUid, locations = [], openSignal = 0, onPendingCountChange, onOpenDiscussion, onImageClick })
 {
   const [desktopOpen, setDesktopOpen] = useState(true);
   const [alertsOpen, setAlertsOpen] = useState(true);
@@ -470,7 +470,7 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
                     <p className="text-xs text-neutral-300">{r.title}</p>
                     {r.description && <p className="text-xs text-neutral-500 mt-0.5">{r.description}</p>}
                     {r.location_text && <p className="text-xs text-neutral-500 mt-0.5">{r.location_text}</p>}
-                    {r.photo_url && <img src={r.photo_url} alt="" className="w-full h-24 object-cover rounded-lg mt-2" />}
+                    {r.photo_url && <img src={r.photo_url} alt="" onClick={() => onImageClick && onImageClick(r.photo_url)} className="w-full h-24 object-cover rounded-lg mt-2 cursor-pointer" />}
                     <div className="flex gap-2 mt-2">
                       <button
                         onClick={() => approveReport(r.id)}
@@ -619,7 +619,7 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
                     {alert.title && <p className="text-xs text-neutral-300">{alert.title}</p>}
                     {alert.location_text && <p className="text-xs text-neutral-400 mt-0.5">{alert.location_text}</p>}
                     {alert.photo_url && (
-                      <img src={alert.photo_url} alt="" className="w-full h-28 object-cover rounded-xl mt-2" />
+                      <img src={alert.photo_url} alt="" onClick={() => onImageClick && onImageClick(alert.photo_url)} className="w-full h-28 object-cover rounded-xl mt-2 cursor-pointer" />
                     )}
                     <div className="flex justify-between items-center mt-1.5">
                       <p className="text-xs text-neutral-500">{timeAgo(alert.created_at)}</p>
@@ -685,7 +685,7 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
                   {rep.title && <p className="text-xs text-neutral-300">{rep.title}</p>}
                   {rep.location_text && <p className="text-xs text-neutral-400 mt-0.5">{rep.location_text}</p>}
                   {rep.photo_url && (
-                    <img src={rep.photo_url} alt="" className="w-full h-28 object-cover rounded-xl mt-2" />
+                    <img src={rep.photo_url} alt="" onClick={() => onImageClick && onImageClick(rep.photo_url)} className="w-full h-28 object-cover rounded-xl mt-2 cursor-pointer" />
                   )}
                   <div className="flex items-center justify-between mt-2">
                     <p className="text-xs text-neutral-500">
