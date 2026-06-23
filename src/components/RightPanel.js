@@ -11,7 +11,7 @@ const UH_CENTER = { lat: 29.7199, lng: -95.3422 };
 // reports must fall within this many miles of campus center. anything
 // further out almost certainly isn't a UH incident, so we reject it
 // rather than dropping a pin in the middle of nowhere. easy to tune.
-const MAX_REPORT_MILES = 2;
+const MAX_REPORT_MILES = 1;
 
 // compact dark style for the pin-drop mini-map
 const MINI_DARK = [
@@ -932,7 +932,7 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
           </button>
 
           {submitStatus === 'success' && (
-            <p className="text-xs text-green-400">Thanks — your report was submitted and is pending review.</p>
+            <p className="text-xs text-green-400">Thanks, your report was submitted and is pending review.</p>
           )}
           {submitStatus === 'error' && (
             <p className="text-xs text-red-400">{submitErrorMsg || "Couldn't submit. Add a summary and try again."}</p>

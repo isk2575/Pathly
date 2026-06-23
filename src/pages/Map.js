@@ -418,6 +418,7 @@ export default function Map()
           <InfoWindow
             position={{ lat: selectedPhone.lat, lng: selectedPhone.lng }}
             onCloseClick={() => setSelectedPhone(null)}
+            options={{ disableAutoPan: true }}
           >
             <div style={{ color: '#111', fontWeight: 600, fontSize: '13px' }}>
               {selectedPhone.name}
@@ -446,6 +447,7 @@ export default function Map()
           <InfoWindow
             position={{ lat: selectedAlert.lat, lng: selectedAlert.lng }}
             onCloseClick={() => setSelectedAlert(null)}
+            options={{ disableAutoPan: true, maxWidth: 240 }}
           >
             <div style={{ maxWidth: '220px', color: '#111' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
@@ -460,7 +462,7 @@ export default function Map()
                 <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>{selectedAlert.location_text}</div>
               )}
               {selectedAlert.photo_url && (
-                <img src={selectedAlert.photo_url} alt="" style={{ width: '100%', borderRadius: '8px', marginBottom: '4px' }} />
+                <img src={selectedAlert.photo_url} alt="" style={{ width: '100%', height: '120px', objectFit: 'cover', background: '#f3f4f6', borderRadius: '8px', marginBottom: '4px' }} />
               )}
               <div style={{ fontSize: '11px', color: '#888' }}>{timeAgo(selectedAlert.created_at)}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
