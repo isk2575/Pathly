@@ -5,7 +5,7 @@ from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, distinct, and_
 from sqlalchemy.exc import IntegrityError
 import networkx as nx
 
@@ -223,19 +223,29 @@ def get_bluelights(db: Session = Depends(get_db)):
 
 @app.get("/incidents", response_model=List[schemas.IncidentOut])
 def get_incidents(db: Session = Depends(get_db)):
-    """Live alerts for the Campus Alerts panel — active, newest first,
-    each annotated with how many users have confirmed it."""
+    """Live alerts for the Campus Alerts panel — active, newest first, each
+    annotated with how many users confirmed it and how many comments it has.
+    distinct() on each count keeps the two joins from inflating each other."""
     rows = (
-        db.query(Incident, func.count(Confirmation.id))
+        db.query(
+            Incident,
+            func.count(distinct(Confirmation.id)),
+            func.count(distinct(AlertComment.id)),
+        )
         .outerjoin(Confirmation, Confirmation.incident_id == Incident.id)
+        .outerjoin(
+            AlertComment,
+            and_(AlertComment.incident_id == Incident.id, AlertComment.is_deleted.isnot(True)),
+        )
         .filter(Incident.status == IncidentStatus.active, Incident.is_deleted.isnot(True))
         .group_by(Incident.id)
         .order_by(Incident.created_at.desc())
         .all()
     )
     out = []
-    for incident, count in rows:
-        incident.confirmation_count = count  # transient attr the schema reads
+    for incident, confirms, comments in rows:
+        incident.confirmation_count = confirms
+        incident.comment_count = comments
         out.append(incident)
     return out
 
@@ -267,6 +277,7 @@ def create_report(payload: schemas.ReportCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(incident)
     incident.confirmation_count = 0  # brand new — nobody's confirmed yet
+    incident.comment_count = 0
     return incident
 
 
@@ -325,6 +336,7 @@ def admin_pending(firebase_uid: str = "", db: Session = Depends(get_db)):
     out = []
     for incident, count in rows:
         incident.confirmation_count = count
+        incident.comment_count = 0
         out.append(incident)
     return out
 
@@ -340,6 +352,7 @@ def admin_approve(incident_id: int, firebase_uid: str = "", db: Session = Depend
     db.commit()
     db.refresh(incident)
     incident.confirmation_count = count_confirmations(db, incident.id)
+    incident.comment_count = 0
     return incident
 
 
@@ -354,6 +367,7 @@ def admin_delete(incident_id: int, firebase_uid: str = "", db: Session = Depends
     db.commit()
     db.refresh(incident)
     incident.confirmation_count = count_confirmations(db, incident.id)
+    incident.comment_count = 0
     return incident
 
 
@@ -452,6 +466,7 @@ def get_unconfirmed(db: Session = Depends(get_db)):
     out = []
     for incident, count in rows:
         incident.confirmation_count = count
+        incident.comment_count = 0
         out.append(incident)
     return out
 

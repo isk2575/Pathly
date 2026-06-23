@@ -63,7 +63,7 @@ function milesBetween(a, b)
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
-export default function RightPanel({ darkMode, isMobile = false, isOpen = true, onClose, userLocation, firebaseUid, locations = [], openSignal = 0, onPendingCountChange })
+export default function RightPanel({ darkMode, isMobile = false, isOpen = true, onClose, userLocation, firebaseUid, locations = [], openSignal = 0, onPendingCountChange, onOpenDiscussion })
 {
   const [desktopOpen, setDesktopOpen] = useState(true);
   const [alertsOpen, setAlertsOpen] = useState(true);
@@ -73,6 +73,13 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
   const [isAdmin, setIsAdmin] = useState(false);
   const [pending, setPending] = useState([]);
 
+  // "Unconfirmed nearby": pending community reports waiting on confirmations.
+  // CONFIRM_THRESHOLD mirrors the backend — 3 distinct users posts it live.
+  const CONFIRM_THRESHOLD = 3;
+  const [unconfirmed, setUnconfirmed] = useState([]);
+  const [confirmedIds, setConfirmedIds] = useState(() => new Set());
+  const [alertSort, setAlertSort] = useState('recent'); // 'recent' | 'trending'
+
   // live alerts from the database
   useEffect(() =>
   {
@@ -80,6 +87,15 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
       .then((res) => res.json())
       .then((data) => { setAlerts(Array.isArray(data) ? data : []); setLoading(false); })
       .catch((err) => { console.error("Failed to load incidents:", err); setLoading(false); });
+  }, []);
+
+  // the unconfirmed feed — reports not yet posted to the map
+  useEffect(() =>
+  {
+    fetch(`${API_URL}/incidents/unconfirmed`)
+      .then((res) => res.json())
+      .then((data) => setUnconfirmed(Array.isArray(data) ? data : []))
+      .catch((err) => console.error("Failed to load unconfirmed reports:", err));
   }, []);
 
   // live blue-light phones from the database
@@ -135,6 +151,67 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
   {
     if (openSignal > 0) setDesktopOpen(true);
   }, [openSignal]);
+
+  // confirm an already-live alert from the Campus Alerts list. unlike the
+  // feed version, this one just bumps the count in place (it's already posted).
+  const confirmActiveAlert = async (id) =>
+  {
+    if (!firebaseUid) return;
+
+    try
+    {
+      const res = await fetch(`${API_URL}/incidents/${id}/confirm?firebase_uid=${encodeURIComponent(firebaseUid)}`, { method: 'POST' });
+      if (!res.ok) throw new Error(`Confirm failed: ${res.status}`);
+      const data = await res.json();
+
+      setConfirmedIds((prev) =>
+      {
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+      setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, confirmation_count: data.confirmation_count } : a)));
+    }
+    catch (err)
+    {
+      console.error('Confirm failed:', err);
+    }
+  };
+
+  // a user confirms a report in the unconfirmed feed. updates its count;
+  // when the backend says it crossed the threshold (promoted), it's now a
+  // live alert, so we drop it from this feed — it'll show on the map.
+  const confirmReport = async (id) =>
+  {
+    if (!firebaseUid) return;
+
+    try
+    {
+      const res = await fetch(`${API_URL}/incidents/${id}/confirm?firebase_uid=${encodeURIComponent(firebaseUid)}`, { method: 'POST' });
+      if (!res.ok) throw new Error(`Confirm failed: ${res.status}`);
+      const data = await res.json();
+
+      setConfirmedIds((prev) =>
+      {
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+
+      if (data.promoted)
+      {
+        setUnconfirmed((prev) => prev.filter((r) => r.id !== id));
+      }
+      else
+      {
+        setUnconfirmed((prev) => prev.map((r) => (r.id === id ? { ...r, confirmation_count: data.confirmation_count } : r)));
+      }
+    }
+    catch (err)
+    {
+      console.error('Confirm failed:', err);
+    }
+  };
 
   const approveReport = async (id) =>
   {
@@ -491,34 +568,149 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
       </button>
 
       {alertsOpen && (
-        <div className="flex flex-col gap-3 max-h-72 overflow-y-auto">
-          {loading && (
-            <p className="text-xs text-neutral-500">Loading alerts…</p>
+        <div className="flex flex-col gap-3">
+          {/* sort toggle: Recent (newest) vs Trending (most engaged) */}
+          {!loading && alerts.length > 1 && (
+            <div className="flex items-center gap-1 bg-neutral-800 rounded-full p-1 self-start">
+              <button
+                onClick={() => setAlertSort('recent')}
+                className={`text-xs font-medium rounded-full px-3 py-1 ${alertSort === 'recent' ? 'bg-white text-black' : 'text-neutral-400'}`}
+              >
+                Recent
+              </button>
+              <button
+                onClick={() => setAlertSort('trending')}
+                className={`text-xs font-medium rounded-full px-3 py-1 ${alertSort === 'trending' ? 'bg-white text-black' : 'text-neutral-400'}`}
+              >
+                🔥 Trending
+              </button>
+            </div>
           )}
-          {!loading && alerts.length === 0 && (
-            <p className="text-xs text-neutral-500">No active alerts on campus right now.</p>
-          )}
-          {alerts.map((alert) =>
-          {
-            const c = severityStyles[alert.severity] || severityStyles.warning;
-            const dist = milesBetween(userLocation, { lat: alert.lat, lng: alert.lng });
-            return (
-              <div key={alert.id} className="bg-neutral-800 rounded-2xl p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`w-2 h-2 rounded-full ${c.dot}`} />
-                  <p className={`text-sm font-medium ${c.text}`}>{alert.type}</p>
+
+          <div className="flex flex-col gap-3 max-h-80 overflow-y-auto">
+            {loading && (
+              <p className="text-xs text-neutral-500">Loading alerts…</p>
+            )}
+            {!loading && alerts.length === 0 && (
+              <p className="text-xs text-neutral-500">No active alerts on campus right now.</p>
+            )}
+            {(() =>
+            {
+              // trending score = confirmations + comments (engagement)
+              const score = (a) => (a.confirmation_count || 0) + (a.comment_count || 0);
+              const ordered = alertSort === 'trending'
+                ? [...alerts].sort((a, b) => score(b) - score(a))
+                : alerts;
+              return ordered.map((alert, idx) =>
+              {
+                const c = severityStyles[alert.severity] || severityStyles.warning;
+                const dist = milesBetween(userLocation, { lat: alert.lat, lng: alert.lng });
+                const confirms = alert.confirmation_count || 0;
+                const comments = alert.comment_count || 0;
+                const mine = confirmedIds.has(alert.id);
+                const isTop = alertSort === 'trending' && idx === 0 && score(alert) > 0;
+                return (
+                  <div key={alert.id} className={`bg-neutral-800 rounded-2xl p-3 ${isTop ? 'ring-1 ring-amber-500/40' : ''}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`w-2 h-2 rounded-full ${c.dot}`} />
+                      <p className={`text-sm font-medium ${c.text}`}>{alert.type}</p>
+                      {isTop && <span className="text-[10px] text-amber-400 bg-amber-500/15 rounded-full px-1.5 py-0.5">🔥 Trending</span>}
+                    </div>
+                    {alert.title && <p className="text-xs text-neutral-300">{alert.title}</p>}
+                    {alert.location_text && <p className="text-xs text-neutral-400 mt-0.5">{alert.location_text}</p>}
+                    {alert.photo_url && (
+                      <img src={alert.photo_url} alt="" className="w-full h-28 object-cover rounded-xl mt-2" />
+                    )}
+                    <div className="flex justify-between items-center mt-1.5">
+                      <p className="text-xs text-neutral-500">{timeAgo(alert.created_at)}</p>
+                      {dist != null && <p className="text-xs text-neutral-500">{dist.toFixed(1)} mi</p>}
+                    </div>
+
+                    {/* engagement counts */}
+                    {(confirms > 0 || comments > 0) && (
+                      <div className="flex items-center gap-3 mt-1.5 text-[11px] text-neutral-400">
+                        {confirms > 0 && <span>{confirms} confirmed</span>}
+                        {comments > 0 && <span>{comments} comment{comments === 1 ? '' : 's'}</span>}
+                      </div>
+                    )}
+
+                    {/* actions — confirm + discussion, same as the map popup */}
+                    <div className="flex items-center gap-2 mt-2">
+                      <button
+                        onClick={() => confirmActiveAlert(alert.id)}
+                        disabled={!firebaseUid || mine}
+                        className={`flex-1 text-xs font-semibold rounded-full px-3 py-1.5 ${
+                          mine
+                            ? 'bg-green-500/15 text-green-400'
+                            : 'bg-neutral-700 text-white active:bg-neutral-600 disabled:opacity-40'
+                        }`}
+                      >
+                        {mine ? '✓ Confirmed' : 'Confirm'}
+                      </button>
+                      <button
+                        onClick={() => onOpenDiscussion && onOpenDiscussion(alert)}
+                        className="flex-1 text-xs font-semibold rounded-full px-3 py-1.5 bg-white text-black active:bg-neutral-200"
+                      >
+                        Discussion
+                      </button>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* Unconfirmed nearby — community reports collecting confirmations.
+          At CONFIRM_THRESHOLD distinct confirmations they post to the map. */}
+      {unconfirmed.length > 0 && (
+        <div className="mt-1">
+          <div className="flex items-center gap-2 mb-2">
+            <h2 className="text-white font-semibold text-sm">Unconfirmed nearby</h2>
+            <span className="text-[11px] text-neutral-500">help verify</span>
+          </div>
+          <div className="flex flex-col gap-3 max-h-72 overflow-y-auto">
+            {unconfirmed.map((rep) =>
+            {
+              const count = rep.confirmation_count || 0;
+              const mine = confirmedIds.has(rep.id);
+              const dist = milesBetween(userLocation, { lat: rep.lat, lng: rep.lng });
+              return (
+                <div key={rep.id} className="bg-neutral-800 rounded-2xl p-3 border border-neutral-700/60">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <p className="text-sm font-medium text-neutral-200">{rep.type}</p>
+                    <span className="text-[11px] text-amber-400 bg-amber-500/15 rounded-full px-2 py-0.5">Unconfirmed</span>
+                  </div>
+                  {rep.title && <p className="text-xs text-neutral-300">{rep.title}</p>}
+                  {rep.location_text && <p className="text-xs text-neutral-400 mt-0.5">{rep.location_text}</p>}
+                  {rep.photo_url && (
+                    <img src={rep.photo_url} alt="" className="w-full h-28 object-cover rounded-xl mt-2" />
+                  )}
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-xs text-neutral-500">
+                      {count}/{CONFIRM_THRESHOLD} confirmed
+                      {dist != null && ` · ${dist.toFixed(1)} mi`}
+                    </p>
+                    <button
+                      onClick={() => confirmReport(rep.id)}
+                      disabled={!firebaseUid || mine}
+                      className={`text-xs font-semibold rounded-full px-3 py-1 ${
+                        mine
+                          ? 'bg-green-500/15 text-green-400'
+                          : 'bg-white text-black active:bg-neutral-200 disabled:opacity-40'
+                      }`}
+                    >
+                      {mine ? '✓ Confirmed' : "I see it too"}
+                    </button>
+                  </div>
+                  {!firebaseUid && (
+                    <p className="text-[11px] text-neutral-600 mt-1">Sign in to confirm reports.</p>
+                  )}
                 </div>
-                {alert.location_text && <p className="text-xs text-neutral-400">{alert.location_text}</p>}
-                {alert.photo_url && (
-                  <img src={alert.photo_url} alt="" className="w-full h-28 object-cover rounded-xl mt-2" />
-                )}
-                <div className="flex justify-between mt-1">
-                  <p className="text-xs text-neutral-500">{timeAgo(alert.created_at)}</p>
-                  {dist != null && <p className="text-xs text-neutral-500">{dist.toFixed(1)} mi</p>}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -740,7 +932,7 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
           </button>
 
           {submitStatus === 'success' && (
-            <p className="text-xs text-green-400">Thanks, your report was submitted and is pending review.</p>
+            <p className="text-xs text-green-400">Thanks — your report was submitted and is pending review.</p>
           )}
           {submitStatus === 'error' && (
             <p className="text-xs text-red-400">{submitErrorMsg || "Couldn't submit. Add a summary and try again."}</p>

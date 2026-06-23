@@ -40,6 +40,7 @@ class IncidentOut(BaseModel):
     source: str
     status: str
     confirmation_count: int = 0
+    comment_count: int = 0
     created_at: datetime
     expires_at: Optional[datetime] = None
 

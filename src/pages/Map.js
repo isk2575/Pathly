@@ -558,7 +558,7 @@ export default function Map()
             onRequestRoute={requestRoute}
             onStartNavigation={() => setIsNavigating(true)}
           />
-          <RightPanel darkMode={darkMode} userLocation={userLocation} firebaseUid={user?.uid} locations={locations} openSignal={panelOpenSignal} onPendingCountChange={setPendingCount} />
+          <RightPanel darkMode={darkMode} userLocation={userLocation} firebaseUid={user?.uid} locations={locations} openSignal={panelOpenSignal} onPendingCountChange={setPendingCount} onOpenDiscussion={setDiscussionAlert} />
           <BottomBar darkMode={darkMode} />
         </>
       )}
@@ -713,6 +713,7 @@ export default function Map()
             locations={locations}
             openSignal={panelOpenSignal}
             onPendingCountChange={setPendingCount}
+            onOpenDiscussion={setDiscussionAlert}
           />
         </>
       )}
