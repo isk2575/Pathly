@@ -524,8 +524,9 @@ export default function Map()
       </GoogleMap>
 
       {/* Recenter on campus — the map roams free now, this brings it home.
-          Hidden in navigation mode, which drives the camera itself. */}
-      {!isNavigating && (
+          Hidden in navigation mode (which drives the camera itself) and
+          whenever a panel is open over the map, so it never floats on top. */}
+      {!isNavigating && !showMobilePanel && !showRightPanel && (
         <button
           onClick={recenterOnUH}
           aria-label="Recenter on campus"
