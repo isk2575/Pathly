@@ -573,7 +573,7 @@ export default function Map()
           <span className="text-left leading-tight">
             <span className="block text-white text-xs font-semibold">New alerts pending review</span>
             <span className="block text-neutral-400 text-[11px]">
-              {pendingCount} report{pendingCount === 1 ? '' : 's'}, tap to review
+              {pendingCount} report{pendingCount === 1 ? '' : 's'} — tap to review
             </span>
           </span>
         </button>
