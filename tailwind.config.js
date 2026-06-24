@@ -6,4 +6,10 @@ module.exports = {
   },
   plugins: [],
 }
+module.exports = {
+  darkMode: 'class',          // ← add this line
+  content: ['./src/**/*.{js,jsx}'],
+  theme: { extend: {} },
+  plugins: [],
+}
 
