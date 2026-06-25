@@ -20,9 +20,10 @@ import { blueLightPhones } from '../blue_lights';
 // CRA minifies MapLibre's inline worker badly in production, which crashes it
 // ('a is not defined') and leaves tiles undecoded → blank map. This only bites
 // the deployed (minified) build, never local dev. Point MapLibre at the
-// prebuilt CSP worker from CDN to sidestep the mangling. The version in the URL
-// MUST match the installed maplibre-gl (5.24.0).
-maplibregl.workerUrl = 'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl-csp-worker.js';
+// prebuilt CSP worker from CDN to sidestep the mangling. NOTE: maplibre-gl v4+
+// removed the `workerUrl` property — must use setWorkerUrl(). Version in the
+// URL MUST match the installed maplibre-gl (5.24.0).
+maplibregl.setWorkerUrl('https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl-csp-worker.js');
 
 // MapLibre style — MapTiler hosted tiles (reliable, free tier, needs a key).
 // streets-v2 shows campus footpaths, like the old OpenFreeMap style but hosted
