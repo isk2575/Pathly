@@ -1,4 +1,4 @@
-import React, {useState} from "react";
+import React, {useState, useEffect} from "react";
 import { useNavigate } from "react-router-dom";
 import{
     signInWithEmailAndPassword, 
@@ -21,6 +21,20 @@ export default function Auth()
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState("");
+
+    // Disable browser zoom on the auth page (no pinch, no tap-zoom). Restored
+    // when leaving (e.g. to /map) so the map keeps its pinch-zoom.
+    useEffect(() =>
+    {
+        const vp = document.querySelector('meta[name=viewport]');
+        if (!vp) return;
+        const prev = vp.getAttribute('content');
+        vp.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no');
+        return () =>
+        {
+            vp.setAttribute('content', prev || 'width=device-width, initial-scale=1');
+        };
+    }, []);
 
 
     const handleEmailAuth = async (e) =>
@@ -75,6 +89,7 @@ export default function Auth()
 
         }
         catch(err){
+            console.error('Google sign-in failed:', err.code, err.message);
             setError(getFriendlyError(err.code));
 
         }
@@ -91,6 +106,8 @@ export default function Auth()
     if (code === "auth/weak-password") return "Password must be at least 6 characters.";
     if (code === "auth/invalid-email") return "Please enter a valid email address.";
     if (code === "auth/popup-closed-by-user") return "Google sign-in was cancelled.";
+    if (code === "auth/popup-blocked") return "Your browser blocked the sign-in popup. Allow popups and try again.";
+    if (code === "auth/unauthorized-domain") return "This site isn't authorized for Google sign-in yet. (Admin: add this domain in Firebase.)";
     if (code === "auth/too-many-requests") return "Too many attempts. Please wait a moment and try again.";
     return "Something went wrong. Please try again.";
     };
@@ -164,7 +181,7 @@ export default function Auth()
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@uh.edu"
                     required
-                    className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2.5 text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
+                    className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2.5 text-base placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
                 />
                 </div>
     
@@ -178,7 +195,7 @@ export default function Auth()
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
-                    className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2.5 text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
+                    className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2.5 text-base placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
                 />
                 </div>
     
@@ -194,7 +211,7 @@ export default function Auth()
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
                     required
-                    className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2.5 text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
+                    className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2.5 text-base placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
                     />
                 </div>
                 )}
