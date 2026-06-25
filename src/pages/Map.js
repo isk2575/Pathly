@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import MapGL, { Marker, Popup, NavigationControl } from 'react-map-gl/maplibre';
+import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../Firebase';
@@ -16,13 +17,16 @@ import AlertDiscussion from '../components/AlertDiscussion';
 import ImageLightbox from '../components/ImageLightbox';
 import { blueLightPhones } from '../blue_lights';
 
-// MapLibre style — free, no key. We keep the map LIGHT in both themes:
-// dark-matter hides the footpaths (Pathly's whole point), so the map stays
-// crisp and only the UI chrome flips with the toggle. To get a good DARK map
-// later, swap this for a MapTiler dark style (free key):
-//   https://api.maptiler.com/maps/dataviz-dark/style.json?key=YOUR_KEY
-// (the free no-key dark option, dark-matter, is the one that looked weird:
-//   https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json )
+// CRA minifies MapLibre's inline worker badly in production, which crashes it
+// ('a is not defined') and leaves tiles undecoded → blank map. This only bites
+// the deployed (minified) build, never local dev. Point MapLibre at the
+// prebuilt CSP worker from CDN to sidestep the mangling. The version in the URL
+// MUST match the installed maplibre-gl (5.24.0).
+maplibregl.workerUrl = 'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl-csp-worker.js';
+
+// MapLibre style — MapTiler hosted tiles (reliable, free tier, needs a key).
+// streets-v2 shows campus footpaths, like the old OpenFreeMap style but hosted
+// dependably. Key comes from env (REACT_APP_MAPTILER_KEY).
 const MAP_STYLE_LIGHT = `https://api.maptiler.com/maps/streets-v2/style.json?key=${process.env.REACT_APP_MAPTILER_KEY}`;
 
 const uhCenter = {
