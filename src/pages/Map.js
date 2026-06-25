@@ -23,7 +23,7 @@ import { blueLightPhones } from '../blue_lights';
 //   https://api.maptiler.com/maps/dataviz-dark/style.json?key=YOUR_KEY
 // (the free no-key dark option, dark-matter, is the one that looked weird:
 //   https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json )
-const MAP_STYLE_LIGHT = 'https://tiles.openfreemap.org/styles/liberty';
+const MAP_STYLE_LIGHT = `https://api.maptiler.com/maps/streets-v2/style.json?key=${process.env.REACT_APP_MAPTILER_KEY}`;
 
 const uhCenter = {
   lat: 29.7199,

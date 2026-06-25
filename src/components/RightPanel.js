@@ -12,11 +12,11 @@ const UH_CENTER = { lat: 29.7199, lng: -95.3422 };
 // reports must fall within this many miles of campus center. anything
 // further out almost certainly isn't a UH incident, so we reject it
 // rather than dropping a pin in the middle of nowhere. easy to tune.
-const MAX_REPORT_MILES = 2;
+const MAX_REPORT_MILES = 1;
 
 // light vector style for the pin-drop mini-map (free, no key) — light reads
 // cleaner than dark for a quick "tap the spot" picker
-const MINI_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
+const MINI_STYLE = 'https://api.maptiler.com/maps/streets-v2/style.json?key=${process.env.REACT_APP_MAPTILER_KEY}';
 
 // "you are here" blue dot for the pin-drop map (matches navigation mode)
 const USER_DOT =
