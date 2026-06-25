@@ -34,19 +34,19 @@ export default function MobilePanel({ darkMode, locations, onRequestRoute, onSta
   return (
     <div className="flex flex-col gap-3">
 
-      {/* Destination (To) */}
-      <div className="bg-neutral-800 rounded-2xl p-4">
-        <p className="text-xs text-neutral-400 mb-2">To</p>
+      {/* Destination (To) — soft inset field */}
+      <div className="bg-neutral-100 dark:bg-neutral-900 rounded-2xl p-4">
+        <p className="text-xs font-medium text-neutral-500 mb-2">To</p>
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-purple-500" />
           <select
             value={endId}
             onChange={(e) => { setEndId(e.target.value); setRouteFound(false); }}
-            className="flex-1 bg-transparent text-white text-sm font-medium outline-none"
+            className="flex-1 bg-transparent text-neutral-900 dark:text-white text-base font-medium outline-none"
           >
-            <option value="" className="bg-neutral-900">Select destination...</option>
+            <option value="" className="bg-white dark:bg-neutral-900">Select destination...</option>
             {locations.map((loc) => (
-              <option key={loc.id} value={loc.id} className="bg-neutral-900">
+              <option key={loc.id} value={loc.id} className="bg-white dark:bg-neutral-900">
                 {loc.name}
               </option>
             ))}
@@ -54,12 +54,14 @@ export default function MobilePanel({ darkMode, locations, onRequestRoute, onSta
         </div>
       </div>
 
-      {/* Route preference */}
+      {/* Route preference — inverting pills */}
       <div className="flex gap-2">
         <button
           onClick={() => setPreference('safest')}
           className={`flex-1 py-3 rounded-2xl text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 ${
-            preference === 'safest' ? 'bg-white text-black' : 'bg-neutral-800 text-neutral-400'
+            preference === 'safest'
+              ? 'bg-neutral-900 text-white dark:bg-white dark:text-black'
+              : 'bg-neutral-100 dark:bg-neutral-900 text-neutral-500'
           }`}
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -70,7 +72,9 @@ export default function MobilePanel({ darkMode, locations, onRequestRoute, onSta
         <button
           onClick={() => setPreference('fastest')}
           className={`flex-1 py-3 rounded-2xl text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 ${
-            preference === 'fastest' ? 'bg-white text-black' : 'bg-neutral-800 text-neutral-400'
+            preference === 'fastest'
+              ? 'bg-neutral-900 text-white dark:bg-white dark:text-black'
+              : 'bg-neutral-100 dark:bg-neutral-900 text-neutral-500'
           }`}
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -81,21 +85,21 @@ export default function MobilePanel({ darkMode, locations, onRequestRoute, onSta
         </button>
       </div>
 
-      {/* Find Route — white pill */}
+      {/* Find Route — inverting primary pill */}
       <button
         onClick={handleFindRoute}
         disabled={routeLoading || !endId}
-        className="w-full bg-white text-black font-bold py-4 rounded-full text-base disabled:opacity-40 transition-colors active:bg-neutral-200 flex items-center justify-center gap-2"
+        className="w-full bg-neutral-900 text-white dark:bg-white dark:text-black font-bold py-4 rounded-full text-base disabled:opacity-40 transition-colors active:bg-neutral-800 dark:active:bg-neutral-200 flex items-center justify-center gap-2"
       >
         {routeLoading ? 'Finding route...' : 'Find Safe Route'}
         {!routeLoading && (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2.5">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M5 12h14M12 5l7 7-7 7"/>
           </svg>
         )}
       </button>
 
-      {/* Start Route — green pill */}
+      {/* Start Route — green pill (stays green in both themes; it's a go signal) */}
       {routeFound && (
         <button
           onClick={onStartNavigation}
