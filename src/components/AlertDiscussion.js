@@ -172,7 +172,8 @@ export default function AlertDiscussion({ alert, firebaseUid, authorName, isAdmi
                 onChange={(e) => setBody(e.target.value.slice(0, MAX_COMMENT_LEN))}
                 placeholder="Share an update…"
                 rows={2}
-                className="w-full bg-neutral-800 text-white text-sm rounded-2xl px-3 py-2 outline-none resize-none placeholder-neutral-500"
+                style={{ fontSize: '16px' }}
+                className="w-full bg-neutral-800 text-white rounded-2xl px-3 py-2 outline-none resize-none placeholder-neutral-500"
               />
               <div className="flex items-center justify-between mt-2">
                 <span className="text-neutral-600 text-[11px]">{body.length}/{MAX_COMMENT_LEN}</span>
