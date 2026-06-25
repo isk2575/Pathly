@@ -14,9 +14,10 @@ const UH_CENTER = { lat: 29.7199, lng: -95.3422 };
 // rather than dropping a pin in the middle of nowhere. easy to tune.
 const MAX_REPORT_MILES = 1;
 
-// light vector style for the pin-drop mini-map (free, no key) — light reads
-// cleaner than dark for a quick "tap the spot" picker
-const MINI_STYLE = 'https://api.maptiler.com/maps/streets-v2/style.json?key=${process.env.REACT_APP_MAPTILER_KEY}';
+// light vector style for the pin-drop mini-map — MapTiler hosted (reliable,
+// free tier). Key from env (REACT_APP_MAPTILER_KEY). NOTE: backticks required
+// so the key actually interpolates — single quotes ship "${...}" literally.
+const MINI_STYLE = `https://api.maptiler.com/maps/streets-v2/style.json?key=${process.env.REACT_APP_MAPTILER_KEY}`;
 
 // "you are here" blue dot for the pin-drop map (matches navigation mode)
 const USER_DOT =
@@ -813,7 +814,7 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
         <select
           value={reportType}
           onChange={(e) => setReportType(e.target.value)}
-          className="w-full rounded-2xl bg-neutral-100 dark:bg-neutral-900 px-4 py-3 text-sm font-semibold text-neutral-900 dark:text-white outline-none"
+          className="w-full rounded-2xl bg-neutral-100 dark:bg-neutral-900 px-4 py-3 text-base font-semibold text-neutral-900 dark:text-white outline-none"
         >
           {REPORT_TYPES.map((t) => (
             <option key={t} value={t}>
@@ -827,7 +828,7 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
           value={reportTitle}
           onChange={(e) => setReportTitle(e.target.value)}
           placeholder="What happened?"
-          className="w-full rounded-2xl bg-neutral-100 dark:bg-neutral-900 px-4 py-3 text-sm text-neutral-900 dark:text-white outline-none placeholder-neutral-500"
+          className="w-full rounded-2xl bg-neutral-100 dark:bg-neutral-900 px-4 py-3 text-base text-neutral-900 dark:text-white outline-none placeholder-neutral-500"
         />
 
         <textarea
@@ -835,7 +836,7 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
           onChange={(e) => setReportDesc(e.target.value)}
           rows={3}
           placeholder="Add details, location, or anything helpful"
-          className="w-full resize-none rounded-2xl bg-neutral-100 dark:bg-neutral-900 px-4 py-3 text-sm text-neutral-900 dark:text-white outline-none placeholder-neutral-500"
+          className="w-full resize-none rounded-2xl bg-neutral-100 dark:bg-neutral-900 px-4 py-3 text-base text-neutral-900 dark:text-white outline-none placeholder-neutral-500"
         />
 
         <div className="grid grid-cols-3 gap-2">
@@ -856,6 +857,101 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
               {s.label}
             </button>
           ))}
+        </div>
+
+        {/* Where did it happen? */}
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-neutral-500">
+            Where did it happen?
+          </p>
+
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { key: "current", label: "My location" },
+              { key: "spot", label: "Campus spot" },
+              { key: "pin", label: "Drop a pin" },
+            ].map((m) => (
+              <button
+                key={m.key}
+                onClick={() => setLocMode(m.key)}
+                className={`rounded-2xl py-2 text-xs font-bold transition ${
+                  locMode === m.key
+                    ? "bg-neutral-900 text-white dark:bg-white dark:text-black"
+                    : "bg-neutral-100 dark:bg-neutral-900 text-neutral-500"
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+
+          {locMode === "current" && (
+            <p className="text-xs text-neutral-500">
+              {userLocation
+                ? "Using your current GPS location."
+                : "Location unavailable right now — pick another option."}
+            </p>
+          )}
+
+          {locMode === "spot" && (
+            <select
+              value={spotId}
+              onChange={(e) => setSpotId(e.target.value)}
+              className="w-full rounded-2xl bg-neutral-100 dark:bg-neutral-900 px-4 py-3 text-base text-neutral-900 dark:text-white outline-none"
+            >
+              <option value="">Select a place…</option>
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.name}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {locMode === "pin" && (
+            <div className="flex flex-col gap-1">
+              <div className="overflow-hidden rounded-2xl border border-neutral-200 dark:border-neutral-800">
+                <MapGL
+                  initialViewState={{ longitude: UH_CENTER.lng, latitude: UH_CENTER.lat, zoom: 16 }}
+                  style={{ width: "100%", height: "200px" }}
+                  mapStyle={MINI_STYLE}
+                  attributionControl={false}
+                  onClick={(e) =>
+                  {
+                    const point = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+                    const dist = milesBetween(UH_CENTER, point);
+                    // reject taps outside the valid zone — tell the user to pick
+                    // a campus spot and don't place the pin
+                    if (dist != null && dist > MAX_REPORT_MILES)
+                    {
+                      setPinError("That spot is too far from campus. Please pick a UH area.");
+                      return;
+                    }
+                    setPinError(null);
+                    setPinPos(point);
+                  }}
+                >
+                  {userLocation && (
+                    <Marker longitude={userLocation.lng} latitude={userLocation.lat}>
+                      <img src={USER_DOT} width={22} height={22} alt="" style={{ display: "block" }} />
+                    </Marker>
+                  )}
+                  {pinPos && (
+                    <Marker longitude={pinPos.lng} latitude={pinPos.lat} anchor="bottom">
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="#ef4444" stroke="#fff" strokeWidth="1.5">
+                        <path d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7z" />
+                        <circle cx="12" cy="9" r="2.5" fill="#fff" stroke="none" />
+                      </svg>
+                    </Marker>
+                  )}
+                </MapGL>
+              </div>
+              <p className="text-xs text-neutral-500">
+                {pinPos ? "Pin placed. Tap again to move it." : "Tap where it happened. The blue dot is you."}
+              </p>
+              {pinError && <p className="text-xs font-semibold text-red-500">{pinError}</p>}
+            </div>
+          )}
         </div>
 
         <label className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-900 px-4 py-3 text-sm font-semibold text-neutral-500">

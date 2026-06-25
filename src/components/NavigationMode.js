@@ -73,8 +73,9 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
   const zoomToUser = (userLat, userLng) =>
   {
     if (!mapRef.current) return;
-    mapRef.current.panTo([userLng, userLat]); // MapLibre wants [lng, lat]
-    mapRef.current.setZoom(NAV_ZOOM);
+    // single combined move — separate panTo + setZoom calls can interrupt each
+    // other mid-animation and land the camera in the wrong place
+    mapRef.current.flyTo({ center: [userLng, userLat], zoom: NAV_ZOOM, duration: 800 });
     lastRecenterRef.current = { lat: userLat, lng: userLng };
   };
 
@@ -87,7 +88,7 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
     const moved = last ? getDistance(last.lat, last.lng, userLat, userLng) : Infinity;
     if (moved > RECENTER_THRESHOLD_M)
     {
-      mapRef.current.panTo([userLng, userLat]);
+      mapRef.current.easeTo({ center: [userLng, userLat], duration: 600 });
       lastRecenterRef.current = { lat: userLat, lng: userLng };
     }
   };
@@ -98,8 +99,7 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
     if (!mapRef.current) return;
     const p = userPosRef.current;
     if (!p) return;
-    mapRef.current.panTo([p.lng, p.lat]);
-    mapRef.current.setZoom(NAV_ZOOM);
+    mapRef.current.flyTo({ center: [p.lng, p.lat], zoom: NAV_ZOOM, duration: 800 });
     lastRecenterRef.current = { lat: p.lat, lng: p.lng };
   };
 
