@@ -17,6 +17,18 @@ export default function AnimatedRoute({ path, isNavigating })
 
   return (
     <Source id="safe-route" type="geojson" data={data}>
+      {/* casing — a darker, wider line underneath so the route stays crisp on
+          both light and dark basemaps (the "snapped to path" ribbon look) */}
+      <Layer
+        id="safe-route-casing"
+        type="line"
+        layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+        paint={{
+          'line-color': '#065f46',
+          'line-width': isNavigating ? 10 : 7,
+          'line-opacity': 0.55,
+        }}
+      />
       <Layer
         id="safe-route-line"
         type="line"

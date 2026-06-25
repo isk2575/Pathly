@@ -12,14 +12,17 @@ import NavigationMode from '../components/NavigationMode';
 import MobilePanel from '../components/MobilePanel';
 import AnimatedRoute from '../components/AnimatedRoute';
 import OffCampusRoute from '../components/OffCampusRoute';
+import CampusLights from '../components/CampusLights';
 import AlertDiscussion from '../components/AlertDiscussion';
 import ImageLightbox from '../components/ImageLightbox';
 import { blueLightPhones } from '../blue_lights';
 
-// MapLibre style — MapTiler hosted tiles (reliable, free tier, needs a key).
-// streets-v2 shows campus footpaths, like the old OpenFreeMap style but hosted
-// dependably. Key comes from env (REACT_APP_MAPTILER_KEY).
+// MapLibre styles — MapTiler hosted tiles (reliable, free tier, needs a key).
+// Both keep building names + footpaths. streets-v2-dark is the proper dark twin
+// of streets-v2 (unlike the old CARTO dark-matter, which hid paths and labels).
+// Key comes from env (REACT_APP_MAPTILER_KEY).
 const MAP_STYLE_LIGHT = `https://api.maptiler.com/maps/streets-v2/style.json?key=${process.env.REACT_APP_MAPTILER_KEY}`;
+const MAP_STYLE_DARK = `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${process.env.REACT_APP_MAPTILER_KEY}`;
 
 const uhCenter = {
   lat: 29.7199,
@@ -110,6 +113,7 @@ const timeAgo = (iso) =>
 export default function Map()
 {
   const [darkMode, setDarkMode] = useState(true);
+  const [showLights, setShowLights] = useState(true); // "Campus Lights" night glow
   const [user, setUser] = useState(null);
   const [route, setRoute] = useState(null);
   const [isNavigating, setIsNavigating] = useState(false);
@@ -372,7 +376,7 @@ export default function Map()
         ref={mapRef}
         initialViewState={{ longitude: uhCenter.lng, latitude: uhCenter.lat, zoom: 16 }}
         style={{ width: '100%', height: '100vh' }}
-        mapStyle={MAP_STYLE_LIGHT}
+        mapStyle={darkMode ? MAP_STYLE_DARK : MAP_STYLE_LIGHT}
         attributionControl={false}
         onClick={() =>
         {
@@ -409,6 +413,9 @@ export default function Map()
             </div>
           </Popup>
         )}
+
+        {/* night-map 'Lit Pathways' glow — dark mode only, toggleable */}
+        <CampusLights show={darkMode && showLights} />
 
         <AnimatedRoute path={routePath} isNavigating={isNavigating} />
 
@@ -502,6 +509,27 @@ export default function Map()
           </Marker>
         )}
       </MapGL>
+
+      {/* Campus Lights toggle — only meaningful at night, so dark mode only.
+          Sits just above the recenter button; warm/lit when on, muted when off. */}
+      {darkMode && !isNavigating && !showMobilePanel && !showRightPanel && (
+        <button
+          onClick={() => setShowLights((v) => !v)}
+          aria-label={showLights ? 'Hide campus lights' : 'Show campus lights'}
+          aria-pressed={showLights}
+          className={`absolute right-4 top-1/2 -translate-y-1/2 -mt-14 z-[55] w-11 h-11 rounded-full backdrop-blur border flex items-center justify-center shadow-lg transition-colors ${
+            showLights
+              ? 'bg-amber-400/90 border-amber-300 text-neutral-900'
+              : 'bg-neutral-900/90 border-neutral-700 text-neutral-400 active:bg-neutral-800'
+          }`}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 18h6" />
+            <path d="M10 22h4" />
+            <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.76.76 1.23 1.52 1.41 2.5" />
+          </svg>
+        </button>
+      )}
 
       {/* Recenter on campus — the map roams free now, this brings it home.
           Hidden in navigation mode (which drives the camera itself) and

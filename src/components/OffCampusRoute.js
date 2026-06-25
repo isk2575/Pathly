@@ -14,11 +14,18 @@ export default function OffCampusRoute({ coordinates })
 
   return (
     <Source id="off-campus-route" type="geojson" data={data}>
+      {/* casing for crispness on light + dark basemaps */}
+      <Layer
+        id="off-campus-casing"
+        type="line"
+        layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+        paint={{ 'line-color': '#1e3a8a', 'line-width': 9, 'line-opacity': 0.55 }}
+      />
       <Layer
         id="off-campus-line"
         type="line"
         layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-        paint={{ 'line-color': '#3b82f6', 'line-width': 5, 'line-opacity': 0.9 }}
+        paint={{ 'line-color': '#3b82f6', 'line-width': 5, 'line-opacity': 0.95 }}
       />
     </Source>
   );
