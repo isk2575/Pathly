@@ -31,9 +31,9 @@ export default function CampusLights({ show })
         layout={{ 'line-cap': 'round', 'line-join': 'round' }}
         paint={{
           'line-color': '#fde68a',
-          'line-width': 9,
+          'line-width': 7,
           'line-blur': 8,
-          'line-opacity': 0.18,
+          'line-opacity': 0.12,
         }}
       />
       {/* mid warm band */}
@@ -43,9 +43,9 @@ export default function CampusLights({ show })
         layout={{ 'line-cap': 'round', 'line-join': 'round' }}
         paint={{
           'line-color': '#fcd34d',
-          'line-width': 3.5,
+          'line-width': 3,
           'line-blur': 3,
-          'line-opacity': 0.35,
+          'line-opacity': 0.22,
         }}
       />
       {/* bright core — thin, near-white warm center */}
@@ -55,8 +55,8 @@ export default function CampusLights({ show })
         layout={{ 'line-cap': 'round', 'line-join': 'round' }}
         paint={{
           'line-color': '#fff7e0',
-          'line-width': 1.2,
-          'line-opacity': 0.7,
+          'line-width': 1,
+          'line-opacity': 0.5,
         }}
       />
     </Source>
