@@ -257,19 +257,40 @@ export default function Map()
       .catch((err) => console.error("Failed to load locations:", err));
   }, []);
 
-  // active-alert count for the home Campus Safety card
+  // active-alert count for the home Campus Safety card.
+  // POLLS every 8s so the map stays live — new alerts appear, expired ones
+  // (24h) drop off, and confirmation counts refresh without a page reload.
+  // We refresh the open popup's data too so its count stays in sync.
   useEffect(() =>
   {
-    fetch(`${API_URL}/incidents`)
-      .then((res) => res.json())
-      .then((data) =>
-      {
-        const list = Array.isArray(data) ? data : [];
-        setAlerts(list);
-        setAlertCount(list.length);
-        setHasDanger(list.some((a) => a.severity === 'danger'));
-      })
-      .catch((err) => console.error("Failed to load alert count:", err));
+    let cancelled = false;
+
+    const loadAlerts = () =>
+    {
+      fetch(`${API_URL}/incidents`)
+        .then((res) => res.json())
+        .then((data) =>
+        {
+          if (cancelled) return;
+          const list = Array.isArray(data) ? data : [];
+          setAlerts(list);
+          setAlertCount(list.length);
+          setHasDanger(list.some((a) => a.severity === 'danger'));
+          // keep the open alert popup fresh (e.g. confirmation count) if it's
+          // still live; if it expired or was removed, close the popup.
+          setSelectedAlert((prev) =>
+          {
+            if (!prev) return prev;
+            const updated = list.find((a) => a.id === prev.id);
+            return updated || null;
+          });
+        })
+        .catch((err) => { if (!cancelled) console.error("Failed to load alerts:", err); });
+    };
+
+    loadAlerts();                          // immediate
+    const id = setInterval(loadAlerts, 8000); // then every 8s
+    return () => { cancelled = true; clearInterval(id); };
   }, []);
 
   // zoom to fit route

@@ -26,11 +26,12 @@ export default function AlertDiscussion({ alert, firebaseUid, authorName, isAdmi
   const [posting, setPosting] = useState(false)
   const [error, setError] = useState(null)
 
-  // load the thread for whichever alert is open
-  const loadComments = useCallback(() =>
+  // load the thread for whichever alert is open.
+  // `quiet` skips the loading flag so background polls don't flicker the thread.
+  const loadComments = useCallback((quiet = false) =>
   {
     if (!alert) return
-    setLoading(true)
+    if (!quiet) setLoading(true)
     fetch(`${API_URL}/incidents/${alert.id}/comments`)
       .then((res) => res.json())
       .then((data) =>
@@ -45,9 +46,13 @@ export default function AlertDiscussion({ alert, firebaseUid, authorName, isAdmi
       })
   }, [alert])
 
+  // initial load shows the spinner; then poll quietly every 6s so new
+  // comments from other people appear live without a refresh.
   useEffect(() =>
   {
     loadComments()
+    const id = setInterval(() => loadComments(true), 6000)
+    return () => clearInterval(id)
   }, [loadComments])
 
   const postComment = () =>

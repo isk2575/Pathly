@@ -76,22 +76,42 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
   const [confirmedIds, setConfirmedIds] = useState(() => new Set());
   const [alertSort, setAlertSort] = useState('recent'); // 'recent' | 'trending'
 
-  // live alerts from the database
+  // live alerts from the database — POLLS every 8s so the feed stays current
+  // (new alerts in, expired 24h alerts out, fresh confirmation counts).
   useEffect(() =>
   {
-    fetch(`${API_URL}/incidents`)
-      .then((res) => res.json())
-      .then((data) => { setAlerts(Array.isArray(data) ? data : []); setLoading(false); })
-      .catch((err) => { console.error("Failed to load incidents:", err); setLoading(false); });
+    let cancelled = false;
+
+    const loadAlerts = () =>
+    {
+      fetch(`${API_URL}/incidents`)
+        .then((res) => res.json())
+        .then((data) => { if (!cancelled) { setAlerts(Array.isArray(data) ? data : []); setLoading(false); } })
+        .catch((err) => { if (!cancelled) { console.error("Failed to load incidents:", err); setLoading(false); } });
+    };
+
+    loadAlerts();
+    const id = setInterval(loadAlerts, 8000);
+    return () => { cancelled = true; clearInterval(id); };
   }, []);
 
-  // the unconfirmed feed — reports not yet posted to the map
+  // the unconfirmed feed — reports not yet posted to the map. POLLS every 8s
+  // so community reports (and their confirmation progress) stay live.
   useEffect(() =>
   {
-    fetch(`${API_URL}/incidents/unconfirmed`)
-      .then((res) => res.json())
-      .then((data) => setUnconfirmed(Array.isArray(data) ? data : []))
-      .catch((err) => console.error("Failed to load unconfirmed reports:", err));
+    let cancelled = false;
+
+    const loadUnconfirmed = () =>
+    {
+      fetch(`${API_URL}/incidents/unconfirmed`)
+        .then((res) => res.json())
+        .then((data) => { if (!cancelled) setUnconfirmed(Array.isArray(data) ? data : []); })
+        .catch((err) => { if (!cancelled) console.error("Failed to load unconfirmed reports:", err); });
+    };
+
+    loadUnconfirmed();
+    const id = setInterval(loadUnconfirmed, 8000);
+    return () => { cancelled = true; clearInterval(id); };
   }, []);
 
   // live blue-light phones from the database
@@ -103,7 +123,8 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
       .catch((err) => console.error("Failed to load blue lights:", err));
   }, []);
 
-  // is this user an admin? if so, load the pending-review queue
+  // is this user an admin? if so, load + POLL the pending-review queue every
+  // 8s so new reports show up for review live (this drives the notification).
   useEffect(() =>
   {
     if (!firebaseUid)
@@ -112,21 +133,33 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
       setPending([]);
       return;
     }
+
+    let cancelled = false;
+    let intervalId = null;
+
     fetch(`${API_URL}/admin/check?firebase_uid=${encodeURIComponent(firebaseUid)}`)
       .then((res) => res.json())
       .then((data) =>
       {
+        if (cancelled) return;
         const admin = !!(data && data.is_admin);
         setIsAdmin(admin);
         if (admin)
         {
-          fetch(`${API_URL}/admin/pending?firebase_uid=${encodeURIComponent(firebaseUid)}`)
-            .then((r) => r.json())
-            .then((list) => setPending(Array.isArray(list) ? list : []))
-            .catch((err) => console.error('Failed to load pending reports:', err));
+          const loadPending = () =>
+          {
+            fetch(`${API_URL}/admin/pending?firebase_uid=${encodeURIComponent(firebaseUid)}`)
+              .then((r) => r.json())
+              .then((list) => { if (!cancelled) setPending(Array.isArray(list) ? list : []); })
+              .catch((err) => { if (!cancelled) console.error('Failed to load pending reports:', err); });
+          };
+          loadPending();
+          intervalId = setInterval(loadPending, 8000);
         }
       })
-      .catch((err) => console.error('Admin check failed:', err));
+      .catch((err) => { if (!cancelled) console.error('Admin check failed:', err); });
+
+    return () => { cancelled = true; if (intervalId) clearInterval(intervalId); };
   }, [firebaseUid]);
 
   // tell the parent how many reports are waiting, so it can show the
