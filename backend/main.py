@@ -356,6 +356,59 @@ def get_incidents(db: Session = Depends(get_db)):
     return out
 
 
+@app.get("/zones")
+def get_zones(db: Session = Depends(get_db)):
+    """Incident points for the danger-zone heatmap.
+
+    Includes BOTH active alerts and resolved/historical incidents (your app's
+    reports + ingested UHPD crime-log entries), each with a weight derived from
+    severity and recency. The frontend feeds these into a MapLibre heatmap so
+    areas with more/worse/recent incidents glow hotter (red), quieter areas
+    stay cool. Pending (unverified) reports are excluded — same as routing.
+    """
+    expire_stale_incidents(db)
+
+    rows = (
+        db.query(Incident)
+        .filter(
+            Incident.status.in_([IncidentStatus.active, IncidentStatus.resolved]),
+            Incident.is_deleted.isnot(True),
+            Incident.lat.isnot(None),
+            Incident.lng.isnot(None),
+        )
+        .all()
+    )
+
+    now = datetime.now(timezone.utc)
+    sev_base = {"danger": 1.0, "warning": 0.6, "info": 0.3}
+    ZONE_MAX_AGE_DAYS = 365.0
+
+    points = []
+    for r in rows:
+        sev = getattr(r.severity, "value", str(r.severity))
+        base = sev_base.get(sev, 0.6)
+
+        if r.status == IncidentStatus.active:
+            recency = 1.0
+        else:
+            created = r.created_at or now
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+            age_days = (now - created).total_seconds() / 86400.0
+            if age_days >= ZONE_MAX_AGE_DAYS:
+                continue
+            recency = max(0.15, 1.0 - age_days / ZONE_MAX_AGE_DAYS)
+
+        points.append({
+            "lat": r.lat,
+            "lng": r.lng,
+            "weight": round(base * recency, 3),
+            "severity": sev,
+        })
+
+    return {"points": points, "count": len(points)}
+
+
 @app.post("/reports", response_model=schemas.IncidentOut)
 def create_report(payload: schemas.ReportCreate, db: Session = Depends(get_db)):
     """'Report an Issue' — comes in as a user-sourced, pending incident.

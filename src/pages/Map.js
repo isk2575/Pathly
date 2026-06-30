@@ -13,6 +13,7 @@ import MobilePanel from '../components/MobilePanel';
 import AnimatedRoute from '../components/AnimatedRoute';
 import OffCampusRoute from '../components/OffCampusRoute';
 import CampusLights from '../components/CampusLights';
+import DangerZones from '../components/DangerZones';
 import AlertDiscussion from '../components/AlertDiscussion';
 import ImageLightbox from '../components/ImageLightbox';
 import { blueLightPhones } from '../blue_lights';
@@ -114,6 +115,7 @@ export default function Map()
 {
   const [darkMode, setDarkMode] = useState(true);
   const [showLights, setShowLights] = useState(true); // "Campus Lights" night glow
+  const [showZones, setShowZones] = useState(false); // "Danger Zones" heatmap
   const [user, setUser] = useState(null);
   const [route, setRoute] = useState(null);
   const [isNavigating, setIsNavigating] = useState(false);
@@ -435,6 +437,9 @@ export default function Map()
           </Popup>
         )}
 
+        {/* danger-zone heatmap — your reports + UHPD historical, toggleable */}
+        <DangerZones show={showZones} />
+
         {/* night-map 'Lit Pathways' glow — dark mode only, toggleable */}
         <CampusLights show={darkMode && showLights} />
 
@@ -530,6 +535,27 @@ export default function Map()
           </Marker>
         )}
       </MapGL>
+
+      {/* Danger Zones toggle — shows the incident heatmap (your reports +
+          UHPD historical). Red = more/worse/recent incidents, green = calm. */}
+      {!isNavigating && !showMobilePanel && !showRightPanel && (
+        <button
+          onClick={() => setShowZones((v) => !v)}
+          aria-label={showZones ? 'Hide danger zones' : 'Show danger zones'}
+          aria-pressed={showZones}
+          className={`absolute right-4 top-1/2 -translate-y-1/2 -mt-28 z-[55] w-11 h-11 rounded-full backdrop-blur border flex items-center justify-center shadow-lg transition-colors ${
+            showZones
+              ? 'bg-red-500/90 border-red-400 text-white'
+              : 'bg-neutral-900/90 border-neutral-700 text-neutral-400 active:bg-neutral-800'
+          }`}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </button>
+      )}
 
       {/* Campus Lights toggle — only meaningful at night, so dark mode only.
           Sits just above the recenter button; warm/lit when on, muted when off. */}
