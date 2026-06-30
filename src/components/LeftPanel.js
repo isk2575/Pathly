@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import DestinationPicker from './DestinationPicker';
 
 export default function LeftPanel({ darkMode, locations, onRequestRoute, onStartNavigation })
 {
@@ -112,22 +113,16 @@ export default function LeftPanel({ darkMode, locations, onRequestRoute, onStart
 
                 <div>
                   <p className={`text-xs ${t.textSub} mb-1`}>To</p>
-                  <select
+                  <DestinationPicker
+                    locations={locations}
                     value={endId}
-                    onChange={(e) =>
+                    onChange={(id) =>
                     {
-                      setEndId(e.target.value);
+                      setEndId(id);
                       setRouteFound(false);
                     }}
-                    className={`w-full bg-transparent text-sm font-semibold outline-none ${t.textMain}`}
-                  >
-                    <option value="" className={t.optBg}>Select destination...</option>
-                    {locations.map((loc) => (
-                      <option key={loc.id} value={loc.id} className={t.optBg}>
-                        {loc.name}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Select destination…"
+                  />
                 </div>
               </div>
             </div>

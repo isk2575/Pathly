@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import DestinationPicker from './DestinationPicker';
 
 export default function MobilePanel({ darkMode, locations, onRequestRoute, onStartNavigation })
 {
@@ -34,23 +35,19 @@ export default function MobilePanel({ darkMode, locations, onRequestRoute, onSta
   return (
     <div className="flex flex-col gap-3">
 
-      {/* Destination (To) — soft inset field */}
+      {/* Destination (To) — searchable picker */}
       <div className="bg-neutral-100 dark:bg-neutral-900 rounded-2xl p-4">
         <p className="text-xs font-medium text-neutral-500 mb-2">To</p>
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-purple-500" />
-          <select
-            value={endId}
-            onChange={(e) => { setEndId(e.target.value); setRouteFound(false); }}
-            className="flex-1 bg-transparent text-neutral-900 dark:text-white text-base font-medium outline-none"
-          >
-            <option value="" className="bg-white dark:bg-neutral-900">Select destination...</option>
-            {locations.map((loc) => (
-              <option key={loc.id} value={loc.id} className="bg-white dark:bg-neutral-900">
-                {loc.name}
-              </option>
-            ))}
-          </select>
+          <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <DestinationPicker
+              locations={locations}
+              value={endId}
+              onChange={(id) => { setEndId(id); setRouteFound(false); }}
+              placeholder="Select destination…"
+            />
+          </div>
         </div>
       </div>
 
