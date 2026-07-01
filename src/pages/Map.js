@@ -645,7 +645,7 @@ export default function Map()
             onRequestRoute={requestRoute}
             onStartNavigation={() => setIsNavigating(true)}
           />
-          <RightPanel darkMode={darkMode} userLocation={userLocation} firebaseUid={user?.uid} locations={locations} openSignal={panelOpenSignal} onPendingCountChange={setPendingCount} onOpenDiscussion={setDiscussionAlert} onImageClick={setLightboxSrc} />
+          <RightPanel darkMode={darkMode} userLocation={userLocation} firebaseUid={user?.uid} locations={locations} openSignal={panelOpenSignal} onPendingCountChange={setPendingCount} onOpenDiscussion={setDiscussionAlert} onImageClick={setLightboxSrc} onFocusLocation={(lat, lng) => { if (mapRef.current) mapRef.current.flyTo({ center: [lng, lat], zoom: 17 }); }} />
           <BottomBar darkMode={darkMode} />
         </>
       )}
@@ -802,6 +802,11 @@ export default function Map()
             onPendingCountChange={setPendingCount}
             onOpenDiscussion={setDiscussionAlert}
             onImageClick={setLightboxSrc}
+            onFocusLocation={(lat, lng) =>
+            {
+              setShowRightPanel(false); // close the drawer so the map is visible
+              if (mapRef.current) mapRef.current.flyTo({ center: [lng, lat], zoom: 17 });
+            }}
           />
         </>
       )}

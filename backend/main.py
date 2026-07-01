@@ -409,6 +409,39 @@ def get_zones(db: Session = Depends(get_db)):
     return {"points": points, "count": len(points)}
 
 
+@app.get("/reports/daily")
+def get_daily_reports(db: Session = Depends(get_db)):
+    """Official UHPD crime-log incidents for the 'Daily Reports' panel.
+
+    Returns source=official incidents (the ingested UHPD daily crime log),
+    newest first by occurrence date. These are historical/resolved by nature
+    (they've already happened and been logged), so they live here rather than
+    in /incidents (which is live community alerts only).
+    """
+    rows = (
+        db.query(Incident)
+        .filter(
+            Incident.source == IncidentSource.official,
+            Incident.is_deleted.isnot(True),
+        )
+        .order_by(Incident.created_at.desc())
+        .all()
+    )
+    out = []
+    for r in rows:
+        out.append({
+            "id": r.id,
+            "type": r.type,
+            "title": r.title,
+            "location_text": r.location_text,
+            "lat": r.lat,
+            "lng": r.lng,
+            "severity": getattr(r.severity, "value", str(r.severity)),
+            "occurred_at": r.created_at.isoformat() if r.created_at else None,
+        })
+    return out
+
+
 @app.post("/reports", response_model=schemas.IncidentOut)
 def create_report(payload: schemas.ReportCreate, db: Session = Depends(get_db)):
     """'Report an Issue' — comes in as a user-sourced, pending incident.

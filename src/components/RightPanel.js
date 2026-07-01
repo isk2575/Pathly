@@ -4,6 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { auth, storage } from '../Firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { signOut } from 'firebase/auth';
+import DestinationPicker from './DestinationPicker';
 
 const API_URL = process.env.REACT_APP_API_URL;
 
@@ -59,7 +60,7 @@ function milesBetween(a, b)
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
-export default function RightPanel({ darkMode, isMobile = false, isOpen = true, onClose, userLocation, firebaseUid, locations = [], openSignal = 0, onPendingCountChange, onOpenDiscussion, onImageClick })
+export default function RightPanel({ darkMode, isMobile = false, isOpen = true, onClose, userLocation, firebaseUid, locations = [], openSignal = 0, onPendingCountChange, onOpenDiscussion, onImageClick, onFocusLocation })
 {
   const [desktopOpen, setDesktopOpen] = useState(true);
   const [alertsOpen, setAlertsOpen] = useState(true);
@@ -75,6 +76,11 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
   const [unconfirmed, setUnconfirmed] = useState([]);
   const [confirmedIds, setConfirmedIds] = useState(() => new Set());
   const [alertSort, setAlertSort] = useState('recent'); // 'recent' | 'trending'
+
+  // UHPD official daily reports (the ingested crime log). Separate from live
+  // community alerts — these are historical/official, shown in their own section.
+  const [dailyReports, setDailyReports] = useState([]);
+  const [dailyOpen, setDailyOpen] = useState(false);
 
   // live alerts from the database — POLLS every 8s so the feed stays current
   // (new alerts in, expired 24h alerts out, fresh confirmation counts).
@@ -121,6 +127,16 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
       .then((res) => res.json())
       .then((data) => setBlueLights(Array.isArray(data) ? data : []))
       .catch((err) => console.error("Failed to load blue lights:", err));
+  }, []);
+
+  // UHPD official daily reports (source=official). Loaded once; this data is
+  // historical crime-log data that only changes when you re-ingest, so no poll.
+  useEffect(() =>
+  {
+    fetch(`${API_URL}/reports/daily`)
+      .then((res) => res.json())
+      .then((data) => setDailyReports(Array.isArray(data) ? data : []))
+      .catch((err) => console.error("Failed to load daily reports:", err));
   }, []);
 
   // is this user an admin? if so, load + POLL the pending-review queue every
@@ -810,6 +826,85 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
       </div>
     )}
 
+    {/* UHPD Daily Reports — official crime-log data (source=official) */}
+    {dailyReports.length > 0 && (
+      <div className="rounded-3xl bg-neutral-100 dark:bg-neutral-900 p-4">
+        <button
+          onClick={() => setDailyOpen((v) => !v)}
+          className="flex w-full items-center justify-between"
+        >
+          <div className="text-left">
+            <h2 className="text-sm font-black text-neutral-900 dark:text-white">
+              UHPD Daily Reports
+            </h2>
+            <p className="text-xs text-neutral-500">
+              Official campus crime log
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-white dark:bg-neutral-950 px-3 py-1 text-xs font-bold text-neutral-500">
+              {dailyReports.length}
+            </span>
+            <svg
+              width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.5"
+              className={`text-neutral-400 transition-transform ${dailyOpen ? "rotate-180" : ""}`}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+        </button>
+
+        {dailyOpen && (
+          <div className="mt-3 flex flex-col gap-2 max-h-96 overflow-y-auto">
+            {dailyReports.map((r) => {
+              const c = severityStyles[r.severity] || severityStyles.warning;
+              const canFocus = r.lat != null && r.lng != null && onFocusLocation;
+
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => { if (canFocus) onFocusLocation(r.lat, r.lng); }}
+                  disabled={!canFocus}
+                  className={`w-full text-left rounded-2xl bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 p-3 ${canFocus ? "active:bg-neutral-100 dark:active:bg-neutral-900 cursor-pointer" : "cursor-default"}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${c.dot}`} />
+                    <p className="text-sm font-bold text-neutral-900 dark:text-white truncate">
+                      {r.type}
+                    </p>
+                    {canFocus && (
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-neutral-400">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                        <circle cx="12" cy="10" r="3" />
+                      </svg>
+                    )}
+                    <span className="ml-auto shrink-0 text-[10px] font-bold uppercase tracking-wide text-neutral-400">
+                      UHPD
+                    </span>
+                  </div>
+
+                  {r.location_text && (
+                    <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-300">
+                      {r.location_text}
+                    </p>
+                  )}
+
+                  {r.occurred_at && (
+                    <p className="mt-1 text-[11px] text-neutral-500">
+                      {new Date(r.occurred_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                    </p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    )}
+
     {/* Report Button */}
     {!showReport && (
       <button
@@ -927,18 +1022,14 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
           )}
 
           {locMode === "spot" && (
-            <select
-              value={spotId}
-              onChange={(e) => setSpotId(e.target.value)}
-              className="w-full rounded-2xl bg-neutral-100 dark:bg-neutral-900 px-4 py-3 text-base text-neutral-900 dark:text-white outline-none"
-            >
-              <option value="">Select a place…</option>
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {loc.name}
-                </option>
-              ))}
-            </select>
+            <div className="rounded-2xl bg-neutral-100 dark:bg-neutral-900 px-4 py-3">
+              <DestinationPicker
+                locations={locations}
+                value={spotId}
+                onChange={(id) => setSpotId(id)}
+                placeholder="Select a place…"
+              />
+            </div>
           )}
 
           {locMode === "pin" && (
