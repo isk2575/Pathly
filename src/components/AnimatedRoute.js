@@ -1,34 +1,44 @@
-import { Polyline } from '@react-google-maps/api';
+import { Source, Layer } from 'react-map-gl/maplibre';
 
-// A clean dashed safe-route line (no glow) — styled like the UH campus map.
+// The safe-route line, drawn as a MapLibre GeoJSON line layer.
+// Dashed green to match the UH campus look; thicker while navigating.
 export default function AnimatedRoute({ path, isNavigating })
 {
-  if (!path || path.length === 0) return null;
+  if (!path || path.length < 2) return null;
 
-  // a single dash; repeated along the line to form the dashed pattern
-  const dash = {
-    path: 'M 0,-1 0,1',
-    strokeColor: '#22c55e',
-    strokeOpacity: 1,
-    strokeWeight: isNavigating ? 5 : 4,
-    scale: isNavigating ? 4 : 3,
+  // backend gives {lat,lng}; GeoJSON wants [lng,lat]
+  const data = {
+    type: 'Feature',
+    geometry: {
+      type: 'LineString',
+      coordinates: path.map((p) => [p.lng, p.lat]),
+    },
   };
 
   return (
-    <Polyline
-      path={path}
-      options={{
-        strokeOpacity: 0,        // hide the solid base line
-        clickable: false,
-        zIndex: 2,
-        icons: [
-          {
-            icon: dash,
-            offset: '0',
-            repeat: '18px',      // distance between dashes
-          },
-        ],
-      }}
-    />
+    <Source id="safe-route" type="geojson" data={data}>
+      {/* casing — a darker, wider line underneath so the route stays crisp on
+          both light and dark basemaps (the "snapped to path" ribbon look) */}
+      <Layer
+        id="safe-route-casing"
+        type="line"
+        layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+        paint={{
+          'line-color': '#065f46',
+          'line-width': isNavigating ? 10 : 7,
+          'line-opacity': 0.55,
+        }}
+      />
+      <Layer
+        id="safe-route-line"
+        type="line"
+        layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+        paint={{
+          'line-color': '#22c55e',
+          'line-width': isNavigating ? 6 : 4,
+          'line-dasharray': [2, 1.5],
+        }}
+      />
+    </Source>
   );
 }

@@ -1,5 +1,6 @@
 import os
 from math import radians, sin, cos, sqrt, atan2
+from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 
 from fastapi import FastAPI, Depends, HTTPException
@@ -54,13 +55,20 @@ for u, v, data in graph.edges(data=True):
 
 IS_MULTI = graph.is_multigraph()
 
-# ─── Live-incident avoidance (applied to the safest route at request time) ───
-INCIDENT_RADIUS_M = 70.0   # edges within this many metres of an active alert get penalized
+# ─── Incident-aware routing (applied to the safest route at request time) ───
+INCIDENT_RADIUS_M = 70.0   # edges within this many metres of an incident get penalized
 SEVERITY_PENALTY = {       # extra "virtual metres" added to a nearby edge, by severity
     "danger": 800.0,
     "warning": 300.0,
     "info": 80.0,
 }
+# Historical (resolved) incidents still mark a place as riskier, but less than
+# a live alert, and they fade with age. These two knobs tune that.
+HISTORICAL_WEIGHT = 0.35         # a resolved incident counts this fraction of a live one
+HISTORICAL_MAX_AGE_DAYS = 365.0  # older than this contributes ~nothing (linear decay)
+
+# ─── Alert lifetime ──────────────────────────────────────────────────
+ALERT_TTL_HOURS = 24.0  # how long an alert stays live before it auto-resolves
 
 
 def haversine_m(lat1, lng1, lat2, lng2):
@@ -151,9 +159,61 @@ def build_route(start_lat, start_lng, end_lat, end_lng, weight_attr):
     return coords
 
 
-def active_incident_points(db: Session):
-    """Active alerts that have coordinates — the places to route around."""
-    rows = (
+def expire_stale_incidents(db: Session) -> int:
+    """Flip any active alert that's past its expiry into resolved.
+
+    Expiry is expires_at when set, otherwise created_at + ALERT_TTL_HOURS.
+    Returns how many were expired. Called at the top of the incident-fetching
+    endpoints so the map self-cleans on read/poll — no background scheduler.
+
+    The status flip is the whole feature: resolved alerts drop off the map
+    (those views filter status == active) and at the same moment become
+    historical data for routing (which reads status == resolved).
+    """
+    now = datetime.now(timezone.utc)
+
+    active = (
+        db.query(Incident)
+        .filter(
+            Incident.status == IncidentStatus.active,
+            Incident.is_deleted.isnot(True),
+        )
+        .all()
+    )
+
+    expired = 0
+    for inc in active:
+        cutoff = inc.expires_at
+        if cutoff is None:
+            created = inc.created_at or now
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+            cutoff = created + timedelta(hours=ALERT_TTL_HOURS)
+        elif cutoff.tzinfo is None:
+            cutoff = cutoff.replace(tzinfo=timezone.utc)
+
+        if now >= cutoff:
+            inc.status = IncidentStatus.resolved
+            expired += 1
+
+    if expired:
+        db.commit()
+    return expired
+
+
+def incident_risk_points(db: Session):
+    """Every incident that should bend a safe route, as (lat, lng, severity, scale).
+
+    - Active alerts:   scale = 1.0  (full weight)
+    - Resolved alerts: scale = HISTORICAL_WEIGHT * age_decay  (a past hotspot
+      still nudges routes, but less than a live alert, and fades with age)
+    Pending/unverified reports are intentionally excluded — they aren't
+    confirmed real, so they shouldn't influence routing.
+    """
+    points = []
+
+    # live alerts — full weight
+    active = (
         db.query(Incident)
         .filter(
             Incident.status == IncidentStatus.active,
@@ -163,15 +223,54 @@ def active_incident_points(db: Session):
         )
         .all()
     )
-    points = []
-    for r in rows:
+    for r in active:
         sev = getattr(r.severity, "value", str(r.severity))
-        points.append((r.lat, r.lng, sev))
+        points.append((r.lat, r.lng, sev, 1.0))
+
+    # resolved incidents — historical signal, reduced and age-decayed
+    resolved = (
+        db.query(Incident)
+        .filter(
+            Incident.status == IncidentStatus.resolved,
+            Incident.is_deleted.isnot(True),
+            Incident.lat.isnot(None),
+            Incident.lng.isnot(None),
+        )
+        .all()
+    )
+    now = datetime.now(timezone.utc)
+    for r in resolved:
+        sev = getattr(r.severity, "value", str(r.severity))
+        created = r.created_at
+        if created is None:
+            age_days = 0.0
+        else:
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+            age_days = (now - created).total_seconds() / 86400.0
+
+        if age_days >= HISTORICAL_MAX_AGE_DAYS:
+            continue  # too old to matter
+        decay = 1.0 - (age_days / HISTORICAL_MAX_AGE_DAYS)  # 1.0 today -> 0.0 at max age
+        scale = HISTORICAL_WEIGHT * decay
+        if scale > 0.01:
+            points.append((r.lat, r.lng, sev, scale))
+
     return points
 
 
 def make_incident_weight(incidents):
-    """Dijkstra weight = base safe_cost + penalty for passing near active alerts."""
+    """Dijkstra weight = base safe_cost + penalty for passing near incidents.
+
+    Each incident is (lat, lng, severity, scale). `scale` blends live alerts
+    (1.0) with reduced/decayed historical ones. Penalty falls off linearly to
+    zero at INCIDENT_RADIUS_M. A quick lat/lng box check skips far incidents
+    before the haversine, keeping this fast inside Dijkstra's hot loop.
+    """
+    # ~0.001 deg ≈ 100m here, safely larger than the 70m radius, so anything
+    # outside this box is definitely outside the penalty radius.
+    BOX = 0.001
+
     def base_cost(d):
         if IS_MULTI:
             return min(float(e.get("safe_cost", e.get("length", 1.0))) for e in d.values())
@@ -184,11 +283,14 @@ def make_incident_weight(incidents):
         midy = (graph.nodes[u]["y"] + graph.nodes[v]["y"]) / 2.0
         midx = (graph.nodes[u]["x"] + graph.nodes[v]["x"]) / 2.0
         penalty = 0.0
-        for (ilat, ilng, sev) in incidents:
+        for (ilat, ilng, sev, scale) in incidents:
+            # cheap rejection before the expensive haversine
+            if abs(midy - ilat) > BOX or abs(midx - ilng) > BOX:
+                continue
             dist = haversine_m(midy, midx, ilat, ilng)
             if dist < INCIDENT_RADIUS_M:
                 w = SEVERITY_PENALTY.get(sev, SEVERITY_PENALTY["warning"])
-                penalty += w * (1.0 - dist / INCIDENT_RADIUS_M)
+                penalty += w * scale * (1.0 - dist / INCIDENT_RADIUS_M)
         return base + penalty
 
     return weight
@@ -225,7 +327,11 @@ def get_bluelights(db: Session = Depends(get_db)):
 def get_incidents(db: Session = Depends(get_db)):
     """Live alerts for the Campus Alerts panel — active, newest first, each
     annotated with how many users confirmed it and how many comments it has.
-    distinct() on each count keeps the two joins from inflating each other."""
+    distinct() on each count keeps the two joins from inflating each other.
+
+    Sweeps stale (24h) alerts to resolved first, so the live list is always
+    current and expired ones become historical data in the same pass."""
+    expire_stale_incidents(db)
     rows = (
         db.query(
             Incident,
@@ -250,9 +356,64 @@ def get_incidents(db: Session = Depends(get_db)):
     return out
 
 
+@app.get("/zones")
+def get_zones(db: Session = Depends(get_db)):
+    """Incident points for the danger-zone heatmap.
+
+    Includes BOTH active alerts and resolved/historical incidents (your app's
+    reports + ingested UHPD crime-log entries), each with a weight derived from
+    severity and recency. The frontend feeds these into a MapLibre heatmap so
+    areas with more/worse/recent incidents glow hotter (red), quieter areas
+    stay cool. Pending (unverified) reports are excluded — same as routing.
+    """
+    expire_stale_incidents(db)
+
+    rows = (
+        db.query(Incident)
+        .filter(
+            Incident.status.in_([IncidentStatus.active, IncidentStatus.resolved]),
+            Incident.is_deleted.isnot(True),
+            Incident.lat.isnot(None),
+            Incident.lng.isnot(None),
+        )
+        .all()
+    )
+
+    now = datetime.now(timezone.utc)
+    sev_base = {"danger": 1.0, "warning": 0.6, "info": 0.3}
+    ZONE_MAX_AGE_DAYS = 365.0
+
+    points = []
+    for r in rows:
+        sev = getattr(r.severity, "value", str(r.severity))
+        base = sev_base.get(sev, 0.6)
+
+        if r.status == IncidentStatus.active:
+            recency = 1.0
+        else:
+            created = r.created_at or now
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+            age_days = (now - created).total_seconds() / 86400.0
+            if age_days >= ZONE_MAX_AGE_DAYS:
+                continue
+            recency = max(0.15, 1.0 - age_days / ZONE_MAX_AGE_DAYS)
+
+        points.append({
+            "lat": r.lat,
+            "lng": r.lng,
+            "weight": round(base * recency, 3),
+            "severity": sev,
+        })
+
+    return {"points": points, "count": len(points)}
+
+
 @app.post("/reports", response_model=schemas.IncidentOut)
 def create_report(payload: schemas.ReportCreate, db: Session = Depends(get_db)):
-    """'Report an Issue' — comes in as a user-sourced, pending incident."""
+    """'Report an Issue' — comes in as a user-sourced, pending incident.
+    expires_at is set now so the 24h clock starts at creation; once it's
+    promoted/approved to active it lives out the remaining time."""
     try:
         severity = Severity(payload.severity)
     except ValueError:
@@ -272,6 +433,7 @@ def create_report(payload: schemas.ReportCreate, db: Session = Depends(get_db)):
         source=IncidentSource.user,
         status=IncidentStatus.pending,
         reported_by_id=reporter.id if reporter else None,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=ALERT_TTL_HOURS),
     )
     db.add(incident)
     db.commit()
@@ -283,12 +445,21 @@ def create_report(payload: schemas.ReportCreate, db: Session = Depends(get_db)):
 
 @app.get("/route/safest")
 def get_safest_route(start_lat: float, start_lng: float, end_lat: float, end_lng: float, db: Session = Depends(get_db)):
-    incidents = active_incident_points(db)
+    # sweep stale alerts first so routing doesn't avoid a just-expired one
+    expire_stale_incidents(db)
+    incidents = incident_risk_points(db)
     weight = make_incident_weight(incidents)
     path = build_route(start_lat, start_lng, end_lat, end_lng, weight)
     if path is None:
         return {"error": "No route found"}
-    return {"preference": "safest", "path": path, "avoided": len(incidents)}
+    live = sum(1 for p in incidents if p[3] >= 1.0)
+    historical = len(incidents) - live
+    return {
+        "preference": "safest",
+        "path": path,
+        "avoided": live,            # live alerts (kept for frontend compatibility)
+        "historical": historical,   # past incidents that also nudged the route
+    }
 
 
 @app.get("/route/fastest")

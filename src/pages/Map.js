@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
+import MapGL, { Marker, Popup, NavigationControl } from 'react-map-gl/maplibre';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../Firebase';
 import LeftPanel from '../components/LeftPanel';
@@ -10,13 +11,19 @@ import Navbar from '../components/Navbar';
 import NavigationMode from '../components/NavigationMode';
 import MobilePanel from '../components/MobilePanel';
 import AnimatedRoute from '../components/AnimatedRoute';
+import OffCampusRoute from '../components/OffCampusRoute';
+import CampusLights from '../components/CampusLights';
+import DangerZones from '../components/DangerZones';
 import AlertDiscussion from '../components/AlertDiscussion';
 import ImageLightbox from '../components/ImageLightbox';
+import { blueLightPhones } from '../blue_lights';
 
-const mapContainerStyle = {
-  width: '100%',
-  height: '100vh',
-};
+// MapLibre styles — MapTiler hosted tiles (reliable, free tier, needs a key).
+// Both keep building names + footpaths. streets-v2-dark is the proper dark twin
+// of streets-v2 (unlike the old CARTO dark-matter, which hid paths and labels).
+// Key comes from env (REACT_APP_MAPTILER_KEY).
+const MAP_STYLE_LIGHT = `https://api.maptiler.com/maps/streets-v2/style.json?key=${process.env.REACT_APP_MAPTILER_KEY}`;
+const MAP_STYLE_DARK = `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${process.env.REACT_APP_MAPTILER_KEY}`;
 
 const uhCenter = {
   lat: 29.7199,
@@ -45,36 +52,21 @@ const isOnCampus = (loc) =>
   );
 };
 
-const darkStyles = [
-  { elementType: "geometry", stylers: [{ color: "#212121" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#212121" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#757575" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#2c2c2c" }] },
-  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#8a8a8a" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#000000" }] },
-  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#3d3d3d" }] },
-  { featureType: "poi", elementType: "geometry", stylers: [{ color: "#181818" }] },
-  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#1a1a1a" }] },
-  { featureType: "transit", elementType: "geometry", stylers: [{ color: "#2f2f2f" }] },
-];
-
-const blueLightPhones = [
-  { id: 1, name: "Blue Light - MD Anderson Library", lat: 29.7210, lng: -95.3420 },
-  { id: 2, name: "Blue Light - Student Center", lat: 29.7197, lng: -95.3432 },
-  { id: 3, name: "Blue Light - Science Building", lat: 29.7220, lng: -95.3415 },
-  { id: 4, name: "Blue Light - Cougar Village", lat: 29.7178, lng: -95.3408 },
-  { id: 5, name: "Blue Light - Athletics", lat: 29.7235, lng: -95.3445 },
-  { id: 6, name: "Blue Light - Parking Garage", lat: 29.7188, lng: -95.3398 },
-];
+// blueLightPhones now comes from ../blue_lights (real OSM emergency callboxes)
 
 // glowing blue-light marker (blurred halo behind a crisp marker)
 const blueLightIcon =
   "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
-    <svg width="46" height="46" viewBox="0 0 46 46" xmlns="http://www.w3.org/2000/svg">
-      <defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter></defs>
-      <circle cx="23" cy="23" r="13" fill="#3b82f6" opacity="0.9" filter="url(#glow)"/>
-      <circle cx="23" cy="23" r="12" fill="#2563eb" stroke="#ffffff" stroke-width="2"/>
-      <path d="M23 15 L17 20 v6 c0 3.4 2.4 6.6 6 7.4 3.6-.8 6-4 6-7.4 v-6 z" fill="#ffffff"/>
+    <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="bls" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#0b1220" flood-opacity="0.35"/>
+        </filter>
+      </defs>
+      <circle cx="20" cy="20" r="13" fill="#2563eb" stroke="#ffffff" stroke-width="2.5" filter="url(#bls)"/>
+      <g transform="translate(20,20) scale(0.62) translate(-12,-12)">
+        <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" fill="#ffffff"/>
+      </g>
     </svg>
   `);
 
@@ -122,6 +114,8 @@ const timeAgo = (iso) =>
 export default function Map()
 {
   const [darkMode, setDarkMode] = useState(true);
+  const [showLights, setShowLights] = useState(true); // "Campus Lights" night glow
+  const [showZones, setShowZones] = useState(false); // "Danger Zones" heatmap
   const [user, setUser] = useState(null);
   const [route, setRoute] = useState(null);
   const [isNavigating, setIsNavigating] = useState(false);
@@ -139,6 +133,8 @@ export default function Map()
   const [discussionAlert, setDiscussionAlert] = useState(null); // alert whose comment thread is open
   const [confirmedIds, setConfirmedIds] = useState(() => new Set()); // alerts this user confirmed this session
   const [lightboxSrc, setLightboxSrc] = useState(null); // full-size image overlay
+  const [offCampusCoords, setOffCampusCoords] = useState([]); // ORS blue leg, [lng,lat][]
+  const [journeyMarkers, setJourneyMarkers] = useState([]); // A/C/D pins during nav
   const [isAdmin, setIsAdmin] = useState(false);
   // how many reports are waiting for an admin to approve/delete.
   // RightPanel owns the actual queue and reports the number up here,
@@ -249,8 +245,8 @@ export default function Map()
   {
     if (mapRef.current)
     {
-      mapRef.current.panTo(uhCenter);
-      mapRef.current.setZoom(16);
+      // MapLibre takes [lng, lat], not {lat, lng}
+      mapRef.current.flyTo({ center: [uhCenter.lng, uhCenter.lat], zoom: 16 });
     }
   };
 
@@ -263,37 +259,65 @@ export default function Map()
       .catch((err) => console.error("Failed to load locations:", err));
   }, []);
 
-  // active-alert count for the home Campus Safety card
+  // active-alert count for the home Campus Safety card.
+  // POLLS every 8s so the map stays live — new alerts appear, expired ones
+  // (24h) drop off, and confirmation counts refresh without a page reload.
+  // We refresh the open popup's data too so its count stays in sync.
   useEffect(() =>
   {
-    fetch(`${API_URL}/incidents`)
-      .then((res) => res.json())
-      .then((data) =>
-      {
-        const list = Array.isArray(data) ? data : [];
-        setAlerts(list);
-        setAlertCount(list.length);
-        setHasDanger(list.some((a) => a.severity === 'danger'));
-      })
-      .catch((err) => console.error("Failed to load alert count:", err));
+    let cancelled = false;
+
+    const loadAlerts = () =>
+    {
+      fetch(`${API_URL}/incidents`)
+        .then((res) => res.json())
+        .then((data) =>
+        {
+          if (cancelled) return;
+          const list = Array.isArray(data) ? data : [];
+          setAlerts(list);
+          setAlertCount(list.length);
+          setHasDanger(list.some((a) => a.severity === 'danger'));
+          // keep the open alert popup fresh (e.g. confirmation count) if it's
+          // still live; if it expired or was removed, close the popup.
+          setSelectedAlert((prev) =>
+          {
+            if (!prev) return prev;
+            const updated = list.find((a) => a.id === prev.id);
+            return updated || null;
+          });
+        })
+        .catch((err) => { if (!cancelled) console.error("Failed to load alerts:", err); });
+    };
+
+    loadAlerts();                          // immediate
+    const id = setInterval(loadAlerts, 8000); // then every 8s
+    return () => { cancelled = true; clearInterval(id); };
   }, []);
 
   // zoom to fit route
   useEffect(() =>
   {
-    if (route && mapRef.current && window.google && !isNavigating)
+    if (route && mapRef.current && route.length > 0 && !isNavigating)
     {
-      const bounds = new window.google.maps.LatLngBounds();
-      route.forEach(node =>
+      // compute [[minLng,minLat],[maxLng,maxLat]] from the path
+      let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+      route.forEach((node) =>
       {
-        bounds.extend({ lat: node.lat, lng: node.lng });
+        if (node.lng < minLng) minLng = node.lng;
+        if (node.lat < minLat) minLat = node.lat;
+        if (node.lng > maxLng) maxLng = node.lng;
+        if (node.lat > maxLat) maxLat = node.lat;
       });
-      mapRef.current.fitBounds(bounds, {
-        top: 100,
-        bottom: isMobile ? 300 : 100,
-        left: isMobile ? 40 : 300,
-        right: isMobile ? 40 : 300,
-      });
+
+      mapRef.current.fitBounds(
+        [[minLng, minLat], [maxLng, maxLat]],
+        {
+          padding: isMobile
+            ? { top: 100, bottom: 300, left: 40, right: 40 }
+            : { top: 100, bottom: 100, left: 300, right: 300 },
+        }
+      );
 
       // show mobile panel after route found
       if (isMobile) setShowMobilePanel(true);
@@ -367,99 +391,92 @@ export default function Map()
     [route]
   );
 
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
-  });
-
-  if (!isLoaded)
-  {
-    return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <p className="text-white text-sm">Loading map...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="relative w-full h-screen overflow-hidden">
+    <div className={`relative w-full h-screen overflow-hidden ${darkMode ? 'dark' : ''}`}>
 
-      {/* Map — always full screen */}
-      <GoogleMap
-        mapContainerStyle={mapContainerStyle}
-        options={{
-          // no bounds fence — the map opens focused on UH (see onLoad) but
-          // the user can freely pan/zoom out from there, like nav mode. the
-          // recenter button brings them back to campus on demand.
-          styles: isNavigating ? darkStyles : darkMode ? darkStyles : [],
-          disableDefaultUI: isNavigating,
-          zoomControl: !isNavigating && !isMobile,
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: false,
-          clickableIcons: false,
-        }}
-        onLoad={(map) =>
-        {
-          mapRef.current = map;
-          map.setCenter(uhCenter);
-          map.setZoom(16);
-        }}
+      {/* Map — always full screen (MapLibre + free OSM style) */}
+      <MapGL
+        ref={mapRef}
+        initialViewState={{ longitude: uhCenter.lng, latitude: uhCenter.lat, zoom: 16 }}
+        style={{ width: '100%', height: '100vh' }}
+        mapStyle={darkMode ? MAP_STYLE_DARK : MAP_STYLE_LIGHT}
+        attributionControl={false}
         onClick={() =>
         {
-          // tapping empty map closes whatever popup is open (and its
-          // photo). taps inside an InfoWindow or on another marker
-          // don't reach here, so only a tap on the map itself dismisses.
+          // tapping empty map closes whatever popup is open. taps on a
+          // marker stop propagation, so only a bare map tap dismisses.
           setSelectedAlert(null);
           setSelectedPhone(null);
         }}
       >
-        {blueLightPhones.map((phone) => (
+        {!isNavigating && !isMobile && <NavigationControl position="bottom-right" />}
+
+        {blueLightPhones.map((phone, i) => (
           <Marker
-            key={phone.id}
-            position={{ lat: phone.lat, lng: phone.lng }}
-            title={phone.name}
-            onClick={() => setSelectedPhone(phone)}
-            icon={{
-              url: blueLightIcon,
-              scaledSize: { width: 44, height: 44 },
-            }}
-          />
+            key={`bl-${i}`}
+            longitude={phone.lng}
+            latitude={phone.lat}
+            onClick={(e) => { e.originalEvent.stopPropagation(); setSelectedPhone(phone); }}
+          >
+            <img src={blueLightIcon} width={36} height={36} alt="" style={{ cursor: 'pointer', display: 'block' }} />
+          </Marker>
         ))}
 
         {selectedPhone && (
-          <InfoWindow
-            position={{ lat: selectedPhone.lat, lng: selectedPhone.lng }}
-            onCloseClick={() => setSelectedPhone(null)}
-            options={{ disableAutoPan: true }}
+          <Popup
+            longitude={selectedPhone.lng}
+            latitude={selectedPhone.lat}
+            anchor="bottom"
+            offset={22}
+            closeOnClick={false}
+            onClose={() => setSelectedPhone(null)}
           >
             <div style={{ color: '#111', fontWeight: 600, fontSize: '13px' }}>
-              {selectedPhone.name}
+              Emergency Callbox
             </div>
-          </InfoWindow>
+          </Popup>
         )}
 
+        {/* danger-zone heatmap — your reports + UHPD historical, toggleable */}
+        <DangerZones show={showZones} />
+
+        {/* night-map 'Lit Pathways' glow — dark mode only, toggleable */}
+        <CampusLights show={darkMode && showLights} />
+
         <AnimatedRoute path={routePath} isNavigating={isNavigating} />
+
+        {/* off-campus walking leg (blue) + journey pins, during navigation */}
+        <OffCampusRoute coordinates={offCampusCoords} />
+        {journeyMarkers.map((m) => (
+          <Marker key={m.letter} longitude={m.lng} latitude={m.lat}>
+            <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: m.color, border: '2px solid #fff', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '13px', boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
+              {m.letter}
+            </div>
+          </Marker>
+        ))}
 
         {alerts
           .filter((a) => a.lat != null && a.lng != null)
           .map((alert) => (
             <Marker
               key={`alert-${alert.id}`}
-              position={{ lat: alert.lat, lng: alert.lng }}
-              onClick={() => setSelectedAlert(alert)}
-              icon={{
-                url: alertIcon(alert.severity),
-                scaledSize: { width: 36, height: 36 },
-              }}
-              zIndex={300}
-            />
+              longitude={alert.lng}
+              latitude={alert.lat}
+              onClick={(e) => { e.originalEvent.stopPropagation(); setSelectedAlert(alert); }}
+            >
+              <img src={alertIcon(alert.severity)} width={36} height={36} alt="" style={{ cursor: 'pointer', display: 'block' }} />
+            </Marker>
           ))}
 
         {selectedAlert && (
-          <InfoWindow
-            position={{ lat: selectedAlert.lat, lng: selectedAlert.lng }}
-            onCloseClick={() => setSelectedAlert(null)}
-            options={{ disableAutoPan: true, maxWidth: 240 }}
+          <Popup
+            longitude={selectedAlert.lng}
+            latitude={selectedAlert.lat}
+            anchor="bottom"
+            offset={20}
+            maxWidth="260px"
+            closeOnClick={false}
+            onClose={() => setSelectedAlert(null)}
           >
             <div style={{ maxWidth: '220px', color: '#111' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
@@ -509,19 +526,57 @@ export default function Map()
                 </button>
               )}
             </div>
-          </InfoWindow>
+          </Popup>
         )}
 
         {userLocation && (
-          <Marker
-            position={userLocation}
-            icon={{
-              url: userDotIcon,
-              scaledSize: { width: 30, height: 30 },
-            }}
-          />
+          <Marker longitude={userLocation.lng} latitude={userLocation.lat}>
+            <img src={userDotIcon} width={30} height={30} alt="" style={{ display: 'block' }} />
+          </Marker>
         )}
-      </GoogleMap>
+      </MapGL>
+
+      {/* Danger Zones toggle — shows the incident heatmap (your reports +
+          UHPD historical). Red = more/worse/recent incidents, green = calm. */}
+      {!isNavigating && !showMobilePanel && !showRightPanel && (
+        <button
+          onClick={() => setShowZones((v) => !v)}
+          aria-label={showZones ? 'Hide danger zones' : 'Show danger zones'}
+          aria-pressed={showZones}
+          className={`absolute right-4 top-1/2 -translate-y-1/2 -mt-28 z-[55] w-11 h-11 rounded-full backdrop-blur border flex items-center justify-center shadow-lg transition-colors ${
+            showZones
+              ? 'bg-red-500/90 border-red-400 text-white'
+              : 'bg-neutral-900/90 border-neutral-700 text-neutral-400 active:bg-neutral-800'
+          }`}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </button>
+      )}
+
+      {/* Campus Lights toggle — only meaningful at night, so dark mode only.
+          Sits just above the recenter button; warm/lit when on, muted when off. */}
+      {darkMode && !isNavigating && !showMobilePanel && !showRightPanel && (
+        <button
+          onClick={() => setShowLights((v) => !v)}
+          aria-label={showLights ? 'Hide campus lights' : 'Show campus lights'}
+          aria-pressed={showLights}
+          className={`absolute right-4 top-1/2 -translate-y-1/2 -mt-14 z-[55] w-11 h-11 rounded-full backdrop-blur border flex items-center justify-center shadow-lg transition-colors ${
+            showLights
+              ? 'bg-amber-400/90 border-amber-300 text-neutral-900'
+              : 'bg-neutral-900/90 border-neutral-700 text-neutral-400 active:bg-neutral-800'
+          }`}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 18h6" />
+            <path d="M10 22h4" />
+            <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.76.76 1.23 1.52 1.41 2.5" />
+          </svg>
+        </button>
+      )}
 
       {/* Recenter on campus — the map roams free now, this brings it home.
           Hidden in navigation mode (which drives the camera itself) and
@@ -757,13 +812,16 @@ export default function Map()
           route={route}
           mapRef={mapRef}
           darkMode={darkMode}
+          onOffCampusRoute={setOffCampusCoords}
+          onJourneyMarkers={setJourneyMarkers}
           onExit={() =>
           {
             setIsNavigating(false);
+            setOffCampusCoords([]);
+            setJourneyMarkers([]);
             if (mapRef.current)
             {
-              mapRef.current.setZoom(16);
-              mapRef.current.panTo(uhCenter);
+              mapRef.current.flyTo({ center: [uhCenter.lng, uhCenter.lat], zoom: 16 });
             }
           }}
         />

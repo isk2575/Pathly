@@ -1,0 +1,1022 @@
+{
+  "11b": {
+    "lat": 29.7195126,
+    "lng": -95.3503728,
+    "osm_name": "11B"
+  },
+  "12a": {
+    "lat": 29.720621,
+    "lng": -95.3506515,
+    "osm_name": "12A"
+  },
+  "15c": {
+    "lat": 29.7246349,
+    "lng": -95.3483142,
+    "osm_name": "15C"
+  },
+  "15h": {
+    "lat": 29.72751,
+    "lng": -95.3476297,
+    "osm_name": "15H"
+  },
+  "16b": {
+    "lat": 29.7262971,
+    "lng": -95.3436239,
+    "osm_name": "16B"
+  },
+  "16d": {
+    "lat": 29.7273829,
+    "lng": -95.3425534,
+    "osm_name": "16D"
+  },
+  "16e": {
+    "lat": 29.7278865,
+    "lng": -95.3443158,
+    "osm_name": "16E"
+  },
+  "17a": {
+    "lat": 29.727047,
+    "lng": -95.3412664,
+    "osm_name": "17A"
+  },
+  "17c": {
+    "lat": 29.7276725,
+    "lng": -95.3397841,
+    "osm_name": "17C"
+  },
+  "17d": {
+    "lat": 29.7273302,
+    "lng": -95.3389871,
+    "osm_name": "17D"
+  },
+  "19a": {
+    "lat": 29.7211639,
+    "lng": -95.3387105,
+    "osm_name": "19A"
+  },
+  "19d": {
+    "lat": 29.7227173,
+    "lng": -95.3398433,
+    "osm_name": "19D"
+  },
+  "19f": {
+    "lat": 29.7223211,
+    "lng": -95.3415226,
+    "osm_name": "19F"
+  },
+  "19g": {
+    "lat": 29.7226515,
+    "lng": -95.3384008,
+    "osm_name": "19G"
+  },
+  "1b": {
+    "lat": 29.7196895,
+    "lng": -95.3393519,
+    "osm_name": "1B"
+  },
+  "1e": {
+    "lat": 29.7203084,
+    "lng": -95.3391012,
+    "osm_name": "1E"
+  },
+  "21a": {
+    "lat": 29.7216528,
+    "lng": -95.3372896,
+    "osm_name": "21A"
+  },
+  "21b": {
+    "lat": 29.7207174,
+    "lng": -95.3377503,
+    "osm_name": "21B"
+  },
+  "21c": {
+    "lat": 29.7198244,
+    "lng": -95.3378955,
+    "osm_name": "21C"
+  },
+  "3 amigos bonding": {
+    "lat": 29.7284344,
+    "lng": -95.3343075,
+    "osm_name": "3-Amigos Bonding"
+  },
+  "3b": {
+    "lat": 29.7129638,
+    "lng": -95.3403625,
+    "osm_name": "3B"
+  },
+  "4a": {
+    "lat": 29.7152459,
+    "lng": -95.3413507,
+    "osm_name": "4A"
+  },
+  "6a": {
+    "lat": 29.7177807,
+    "lng": -95.3448051,
+    "osm_name": "6A"
+  },
+  "6b": {
+    "lat": 29.7187279,
+    "lng": -95.3434497,
+    "osm_name": "6B"
+  },
+  "8a": {
+    "lat": 29.7145472,
+    "lng": -95.3481326,
+    "osm_name": "8A"
+  },
+  "9b": {
+    "lat": 29.7170988,
+    "lng": -95.3482514,
+    "osm_name": "9B"
+  },
+  "9c": {
+    "lat": 29.7165397,
+    "lng": -95.347414,
+    "osm_name": "9C"
+  },
+  "a d bruce religion center": {
+    "lat": 29.7192557,
+    "lng": -95.3452507,
+    "osm_name": "A.D. Bruce Religion Center"
+  },
+  "agnes arnold auditorium": {
+    "lat": 29.7224867,
+    "lng": -95.3439126,
+    "osm_name": "Agnes Arnold Auditorium"
+  },
+  "agnes arnold hall": {
+    "lat": 29.7221615,
+    "lng": -95.3441921,
+    "osm_name": "Agnes Arnold Hall"
+  },
+  "alumni center": {
+    "lat": 29.7257846,
+    "lng": -95.347036,
+    "osm_name": "Alumni Center"
+  },
+  "asado tacos bowls": {
+    "lat": 29.7203071,
+    "lng": -95.3411262,
+    "osm_name": "Asado Tacos & Bowls"
+  },
+  "athletic center": {
+    "lat": 29.7259719,
+    "lng": -95.346715,
+    "osm_name": "Athletic Center"
+  },
+  "athletics batting cage": {
+    "lat": 29.7275986,
+    "lng": -95.346144,
+    "osm_name": "Athletics Batting Cage"
+  },
+  "athletics maintenance building": {
+    "lat": 29.727527,
+    "lng": -95.3457614,
+    "osm_name": "Athletics Maintenance Building"
+  },
+  "bapitist student ministry": {
+    "lat": 29.7195659,
+    "lng": -95.3383381,
+    "osm_name": "Bapitist Student Ministry"
+  },
+  "baseball clubhouse": {
+    "lat": 29.7273554,
+    "lng": -95.3458493,
+    "osm_name": "Baseball Clubhouse"
+  },
+  "bates law": {
+    "lat": 29.7241452,
+    "lng": -95.3379869,
+    "osm_name": "Bates Law"
+  },
+  "bert f winston band complex": {
+    "lat": 29.7217664,
+    "lng": -95.3479506,
+    "osm_name": "Bert F. Winston Band Complex"
+  },
+  "blaffer art museum": {
+    "lat": 29.7249252,
+    "lng": -95.3423839,
+    "osm_name": "Blaffer Art Museum"
+  },
+  "bobbie q s rib shack": {
+    "lat": 29.7235139,
+    "lng": -95.3512848,
+    "osm_name": "Bobbie Q's Rib Shack"
+  },
+  "burdette keeland jr design exploration center": {
+    "lat": 29.7247451,
+    "lng": -95.3405509,
+    "osm_name": "Burdette Keeland Jr. Design & Exploration Center"
+  },
+  "butler plaza": {
+    "lat": 29.721709,
+    "lng": -95.342336,
+    "osm_name": "Butler Plaza"
+  },
+  "calhoun s rooftop": {
+    "lat": 29.7228226,
+    "lng": -95.3371295,
+    "osm_name": "Calhoun's Rooftop"
+  },
+  "cambridge oaks pool": {
+    "lat": 29.7178983,
+    "lng": -95.3500363,
+    "osm_name": "Cambridge Oaks Pool"
+  },
+  "cambridge oaks volleyball court": {
+    "lat": 29.7179912,
+    "lng": -95.3503942,
+    "osm_name": "Cambridge Oaks Volleyball Court"
+  },
+  "campus recreation wellness center": {
+    "lat": 29.7176892,
+    "lng": -95.3381317,
+    "osm_name": "Campus Recreation & Wellness Center"
+  },
+  "carl lewis international track field complex": {
+    "lat": 29.7264836,
+    "lng": -95.3482276,
+    "osm_name": "Carl Lewis International Track & Field Complex"
+  },
+  "catholic newman center": {
+    "lat": 29.7191732,
+    "lng": -95.3384674,
+    "osm_name": "Catholic Newman Center"
+  },
+  "central power plant": {
+    "lat": 29.7219675,
+    "lng": -95.3416155,
+    "osm_name": "Central Power Plant"
+  },
+  "charles f mcelhinney hall": {
+    "lat": 29.721222,
+    "lng": -95.3464436,
+    "osm_name": "Charles F. McElhinney Hall"
+  },
+  "chevron": {
+    "lat": 29.7275297,
+    "lng": -95.3502827,
+    "osm_name": "Chevron"
+  },
+  "chick fil a": {
+    "lat": 29.720351,
+    "lng": -95.3403612,
+    "osm_name": "Chick-fil-A"
+  },
+  "christian home missionary baptist church": {
+    "lat": 29.7296225,
+    "lng": -95.3512692,
+    "osm_name": "Christian Home Missionary Baptist Church"
+  },
+  "classroom and business building": {
+    "lat": 29.7215765,
+    "lng": -95.3405188,
+    "osm_name": "Classroom and Business Building"
+  },
+  "college of technology building": {
+    "lat": 29.7233128,
+    "lng": -95.3426119,
+    "osm_name": "College of Technology Building"
+  },
+  "collision lab": {
+    "lat": 29.7288333,
+    "lng": -95.3363578,
+    "osm_name": "Collision Lab"
+  },
+  "conrad n hilton college of global hospitality leadership": {
+    "lat": 29.7190285,
+    "lng": -95.3413155,
+    "osm_name": "Conrad N. Hilton College of Global Hospitality Leadership"
+  },
+  "conrad n hilton college of hotel and resaurant management 2": {
+    "lat": 29.7187597,
+    "lng": -95.3414263,
+    "osm_name": "Conrad N. Hilton College of Hotel and Resaurant Management 2"
+  },
+  "cougar byte": {
+    "lat": 29.7206321,
+    "lng": -95.3417192,
+    "osm_name": "Cougar Byte"
+  },
+  "cougar place": {
+    "lat": 29.7195545,
+    "lng": -95.3489617,
+    "osm_name": "Cougar Place"
+  },
+  "cougar softball stadium": {
+    "lat": 29.7271819,
+    "lng": -95.3489652,
+    "osm_name": "Cougar Softball Stadium"
+  },
+  "cougar village 1": {
+    "lat": 29.7178386,
+    "lng": -95.343065,
+    "osm_name": "Cougar Village 1"
+  },
+  "cougar village 2": {
+    "lat": 29.717929,
+    "lng": -95.3437739,
+    "osm_name": "Cougar Village 2"
+  },
+  "cougar woods": {
+    "lat": 29.719076,
+    "lng": -95.3475082,
+    "osm_name": "Cougar Woods"
+  },
+  "cougar woods dining commons": {
+    "lat": 29.7187793,
+    "lng": -95.3471254,
+    "osm_name": "Cougar Woods Dining Commons"
+  },
+  "cream burger": {
+    "lat": 29.7282348,
+    "lng": -95.3504845,
+    "osm_name": "Cream Burger"
+  },
+  "crwc annex": {
+    "lat": 29.7174454,
+    "lng": -95.336839,
+    "osm_name": "CRWC Annex"
+  },
+  "cullen boulevard elgin street": {
+    "lat": 29.7269217,
+    "lng": -95.3440268,
+    "osm_name": "Cullen Boulevard @ Elgin Street"
+  },
+  "cullen college of engineering 1": {
+    "lat": 29.7228654,
+    "lng": -95.3413947,
+    "osm_name": "Cullen College of Engineering 1"
+  },
+  "cullen college of engineering 2": {
+    "lat": 29.7235127,
+    "lng": -95.3411746,
+    "osm_name": "Cullen College of Engineering 2"
+  },
+  "cullen family plaza fountain": {
+    "lat": 29.7206772,
+    "lng": -95.3446007,
+    "osm_name": "Cullen Family Plaza Fountain"
+  },
+  "cullen oaks apartments": {
+    "lat": 29.7146803,
+    "lng": -95.350137,
+    "osm_name": "Cullen Oaks Apartments"
+  },
+  "cullen oaks apartments parking": {
+    "lat": 29.7135436,
+    "lng": -95.3497554,
+    "osm_name": "Cullen Oaks Apartments Parking"
+  },
+  "cullen oaks parking garage": {
+    "lat": 29.7163667,
+    "lng": -95.3497379,
+    "osm_name": "Cullen Oaks Parking Garage"
+  },
+  "cullen performance hall": {
+    "lat": 29.7202039,
+    "lng": -95.3431705,
+    "osm_name": "Cullen Performance Hall"
+  },
+  "cynthia woods mitchell center for the arts": {
+    "lat": 29.7243713,
+    "lng": -95.3440682,
+    "osm_name": "Cynthia Woods Mitchell Center for the Arts"
+  },
+  "delta tire service": {
+    "lat": 29.7282469,
+    "lng": -95.33412,
+    "osm_name": "Delta Tire Service"
+  },
+  "department of public safety": {
+    "lat": 29.719919,
+    "lng": -95.351183,
+    "osm_name": "Department of Public Safety"
+  },
+  "diez street park": {
+    "lat": 29.7294908,
+    "lng": -95.3328856,
+    "osm_name": "Diez Street Park"
+  },
+  "domino s": {
+    "lat": 29.7257041,
+    "lng": -95.350547,
+    "osm_name": "Domino's"
+  },
+  "durga d and sushila agrawal engineering research building": {
+    "lat": 29.7224059,
+    "lng": -95.3401114,
+    "osm_name": "Durga D. and Sushila Agrawal Engineering Research Building"
+  },
+  "dynamometer test laboratory": {
+    "lat": 29.7146587,
+    "lng": -95.3487026,
+    "osm_name": "Dynamometer Test Laboratory"
+  },
+  "east parking garage": {
+    "lat": 29.7206389,
+    "lng": -95.3370399,
+    "osm_name": "East Parking Garage"
+  },
+  "eastwood transit center": {
+    "lat": 29.7287816,
+    "lng": -95.335711,
+    "osm_name": "Eastwood Transit Center"
+  },
+  "economy lot": {
+    "lat": 29.7165397,
+    "lng": -95.347414,
+    "osm_name": "Economy Lot"
+  },
+  "einstein bros bagels": {
+    "lat": 29.7227774,
+    "lng": -95.3460583,
+    "osm_name": "Einstein Bros. Bagels"
+  },
+  "einstein brothers": {
+    "lat": 29.7216629,
+    "lng": -95.3436742,
+    "osm_name": "Einstein Brothers"
+  },
+  "elgin street garage": {
+    "lat": 29.7252947,
+    "lng": -95.3397481,
+    "osm_name": "Elgin Street Garage"
+  },
+  "engineering lecture hall": {
+    "lat": 29.7227234,
+    "lng": -95.340928,
+    "osm_name": "Engineering Lecture Hall"
+  },
+  "environmental physical safety storage building 1": {
+    "lat": 29.7278054,
+    "lng": -95.3393715,
+    "osm_name": "Environmental & Physical Safety Storage Building 1"
+  },
+  "environmental physical safety storage building 2": {
+    "lat": 29.7280852,
+    "lng": -95.339084,
+    "osm_name": "Environmental & Physical Safety Storage Building 2"
+  },
+  "equal opportunity services": {
+    "lat": 29.7185729,
+    "lng": -95.3445398,
+    "osm_name": "Equal Opportunity Services"
+  },
+  "ezekiel w cullen": {
+    "lat": 29.7203714,
+    "lng": -95.3436314,
+    "osm_name": "Ezekiel W. Cullen"
+  },
+  "faculty parking": {
+    "lat": 29.717125,
+    "lng": -95.342563,
+    "osm_name": "Faculty Parking"
+  },
+  "fertita college of medicine building": {
+    "lat": 29.7113952,
+    "lng": -95.3358429,
+    "osm_name": "Fertita College of Medicine Building"
+  },
+  "fertitta center": {
+    "lat": 29.7246886,
+    "lng": -95.3469779,
+    "osm_name": "Fertitta Center"
+  },
+  "fine arts building": {
+    "lat": 29.7247886,
+    "lng": -95.3426498,
+    "osm_name": "Fine Arts Building"
+  },
+  "fire and life safety storage": {
+    "lat": 29.7134202,
+    "lng": -95.3481078,
+    "osm_name": "Fire and Life Safety - Storage"
+  },
+  "fixtures international": {
+    "lat": 29.7226539,
+    "lng": -95.3327515,
+    "osm_name": "Fixtures International"
+  },
+  "football indoor practice facility": {
+    "lat": 29.7238312,
+    "lng": -95.3500006,
+    "osm_name": "Football Indoor Practice Facility"
+  },
+  "fred j heyne": {
+    "lat": 29.7204396,
+    "lng": -95.3464108,
+    "osm_name": "Fred J. Heyne"
+  },
+  "general services building": {
+    "lat": 29.7280031,
+    "lng": -95.3405006,
+    "osm_name": "General Services Building"
+  },
+  "general services storage": {
+    "lat": 29.7281173,
+    "lng": -95.3394109,
+    "osm_name": "General Services Storage"
+  },
+  "gerald d hines college of architecture": {
+    "lat": 29.7244672,
+    "lng": -95.3415063,
+    "osm_name": "Gerald D. Hines College of Architecture"
+  },
+  "graduate college of social work": {
+    "lat": 29.7228729,
+    "lng": -95.3437787,
+    "osm_name": "Graduate College of Social Work"
+  },
+  "ground storage building": {
+    "lat": 29.7135842,
+    "lng": -95.3482441,
+    "osm_name": "Ground Storage Building"
+  },
+  "guy v lewis development facility": {
+    "lat": 29.7241305,
+    "lng": -95.3467493,
+    "osm_name": "Guy V. Lewis Development Facility"
+  },
+  "health and biomedical science": {
+    "lat": 29.7167261,
+    "lng": -95.3386634,
+    "osm_name": "Health and Biomedical Science"
+  },
+  "health and biomedical science 2": {
+    "lat": 29.7161298,
+    "lng": -95.3380561,
+    "osm_name": "Health and Biomedical Science 2"
+  },
+  "houston food mart": {
+    "lat": 29.7296786,
+    "lng": -95.3500519,
+    "osm_name": "Houston Food Mart"
+  },
+  "human resource center": {
+    "lat": 29.7187048,
+    "lng": -95.3443979,
+    "osm_name": "Human Resource Center"
+  },
+  "isabel c cameron": {
+    "lat": 29.7178871,
+    "lng": -95.3479491,
+    "osm_name": "Isabel C. Cameron"
+  },
+  "j davis armistead": {
+    "lat": 29.7163283,
+    "lng": -95.3390669,
+    "osm_name": "J Davis Armistead"
+  },
+  "jack j valenti school of communication": {
+    "lat": 29.7242331,
+    "lng": -95.3434521,
+    "osm_name": "Jack J. Valenti School of Communication"
+  },
+  "jimmy john s": {
+    "lat": 29.7227273,
+    "lng": -95.3371652,
+    "osm_name": "Jimmy John's"
+  },
+  "john m o quinn law building": {
+    "lat": 29.7230743,
+    "lng": -95.3381752,
+    "osm_name": "John M. O\u2019Quinn Law Building"
+  },
+  "john o quinn field": {
+    "lat": 29.7219968,
+    "lng": -95.3491839,
+    "osm_name": "John O'Quinn Field"
+  },
+  "judy cook building": {
+    "lat": 29.7282015,
+    "lng": -95.3448012,
+    "osm_name": "Judy Cook Building"
+  },
+  "justin dart jr student accessibility center": {
+    "lat": 29.7182501,
+    "lng": -95.3446077,
+    "osm_name": "Justin Dart, Jr. Student Accessibility Center"
+  },
+  "kuht fiber optics building": {
+    "lat": 29.714412,
+    "lng": -95.3483485,
+    "osm_name": "KUHT Fiber Optics Building"
+  },
+  "lamar fleming jr": {
+    "lat": 29.7217909,
+    "lng": -95.3458669,
+    "osm_name": "Lamar Fleming Jr."
+  },
+  "leroy lucile melcher center for public broadcasting": {
+    "lat": 29.7266065,
+    "lng": -95.3390796,
+    "osm_name": "LeRoy & Lucile Melcher Center for Public Broadcasting"
+  },
+  "leroy lucile melcher hall": {
+    "lat": 29.721002,
+    "lng": -95.3394349,
+    "osm_name": "LeRoy & Lucile Melcher Hall"
+  },
+  "lions den kitchen": {
+    "lat": 29.7243105,
+    "lng": -95.350986,
+    "osm_name": "Lions Den Kitchen"
+  },
+  "lynn eusan park": {
+    "lat": 29.7186627,
+    "lng": -95.3425407,
+    "osm_name": "Lynn Eusan Park"
+  },
+  "m d anderson library": {
+    "lat": 29.720968,
+    "lng": -95.3419997,
+    "osm_name": "M.D. Anderson Library"
+  },
+  "macgregor park": {
+    "lat": 29.7101576,
+    "lng": -95.3400975,
+    "osm_name": "MacGregor Park"
+  },
+  "max krost hall": {
+    "lat": 29.7239294,
+    "lng": -95.3387154,
+    "osm_name": "Max Krost Hall"
+  },
+  "mcalister s deli": {
+    "lat": 29.7185367,
+    "lng": -95.3397006,
+    "osm_name": "McAlister's Deli"
+  },
+  "mcdonald s": {
+    "lat": 29.7279966,
+    "lng": -95.3450935,
+    "osm_name": "McDonald's"
+  },
+  "medicine central plant": {
+    "lat": 29.7121132,
+    "lng": -95.3349247,
+    "osm_name": "Medicine Central Plant"
+  },
+  "melcher life sciences": {
+    "lat": 29.7253719,
+    "lng": -95.3483803,
+    "osm_name": "Melcher Life Sciences"
+  },
+  "memorial hermann football operations center": {
+    "lat": 29.7226566,
+    "lng": -95.3505667,
+    "osm_name": "Memorial Hermann Football Operations Center"
+  },
+  "metals inc": {
+    "lat": 29.7236917,
+    "lng": -95.3336142,
+    "osm_name": "Metals Inc"
+  },
+  "michael j cemo hall": {
+    "lat": 29.721866,
+    "lng": -95.3401214,
+    "osm_name": "Michael J. Cemo Hall"
+  },
+  "mondo s subs": {
+    "lat": 29.7204736,
+    "lng": -95.3410915,
+    "osm_name": "Mondo's Subs"
+  },
+  "moody towers dining commons": {
+    "lat": 29.7175235,
+    "lng": -95.3423427,
+    "osm_name": "Moody Towers Dining Commons"
+  },
+  "moody towers residence halls": {
+    "lat": 29.7172815,
+    "lng": -95.3418994,
+    "osm_name": "Moody Towers Residence Halls"
+  },
+  "moores opera house": {
+    "lat": 29.7251174,
+    "lng": -95.3445812,
+    "osm_name": "Moores Opera House"
+  },
+  "moores school of music": {
+    "lat": 29.725429,
+    "lng": -95.3444262,
+    "osm_name": "Moores School of Music"
+  },
+  "murphy s deli": {
+    "lat": 29.7191977,
+    "lng": -95.3376724,
+    "osm_name": "Murphy's Deli"
+  },
+  "navy seafood": {
+    "lat": 29.7246093,
+    "lng": -95.3508714,
+    "osm_name": "Navy Seafood"
+  },
+  "panda express": {
+    "lat": 29.7202287,
+    "lng": -95.3404529,
+    "osm_name": "Panda Express"
+  },
+  "philip guthrie hoffman hall": {
+    "lat": 29.721599,
+    "lng": -95.3436603,
+    "osm_name": "Philip Guthrie Hoffman Hall"
+  },
+  "pink s pizza": {
+    "lat": 29.7226439,
+    "lng": -95.3372,
+    "osm_name": "Pink's Pizza"
+  },
+  "pizza hut": {
+    "lat": 29.7190663,
+    "lng": -95.3377251,
+    "osm_name": "Pizza Hut"
+  },
+  "planned parenthood": {
+    "lat": 29.7255109,
+    "lng": -95.3348151,
+    "osm_name": "Planned Parenthood"
+  },
+  "practice football field": {
+    "lat": 29.725333,
+    "lng": -95.3497522,
+    "osm_name": "Practice Football Field"
+  },
+  "retail auxiliary and dining center rad center": {
+    "lat": 29.7238089,
+    "lng": -95.3442472,
+    "osm_name": "Retail Auxiliary and Dining Center (RAD Center)"
+  },
+  "riverside united methodist church": {
+    "lat": 29.7118583,
+    "lng": -95.3502668,
+    "osm_name": "Riverside United Methodist Church"
+  },
+  "roy g cullen": {
+    "lat": 29.7200362,
+    "lng": -95.3449732,
+    "osm_name": "Roy G. Cullen"
+  },
+  "schroeder park": {
+    "lat": 29.7268528,
+    "lng": -95.3454767,
+    "osm_name": "Schroeder Park"
+  },
+  "science and research 1": {
+    "lat": 29.7229678,
+    "lng": -95.3452407,
+    "osm_name": "Science and Research 1"
+  },
+  "science and research 2": {
+    "lat": 29.7238926,
+    "lng": -95.3447658,
+    "osm_name": "Science and Research 2"
+  },
+  "science building": {
+    "lat": 29.7214078,
+    "lng": -95.3445653,
+    "osm_name": "Science Building"
+  },
+  "science engineering classroom building": {
+    "lat": 29.7233973,
+    "lng": -95.3456673,
+    "osm_name": "Science & Engineering Classroom Building"
+  },
+  "science engineering research center": {
+    "lat": 29.722753,
+    "lng": -95.3460418,
+    "osm_name": "Science & Engineering Research Center"
+  },
+  "science teaching laboratory building": {
+    "lat": 29.7217151,
+    "lng": -95.3467311,
+    "osm_name": "Science Teaching Laboratory Building"
+  },
+  "shasta s cones more": {
+    "lat": 29.720568,
+    "lng": -95.3410686,
+    "osm_name": "Shasta's Cones & More"
+  },
+  "smith neighborhood library": {
+    "lat": 29.7227197,
+    "lng": -95.351726,
+    "osm_name": "Smith Neighborhood Library"
+  },
+  "softball batting": {
+    "lat": 29.7274629,
+    "lng": -95.348537,
+    "osm_name": "Softball Batting"
+  },
+  "softball stadium": {
+    "lat": 29.7272415,
+    "lng": -95.3491341,
+    "osm_name": "Softball Stadium"
+  },
+  "south park annex": {
+    "lat": 29.7142203,
+    "lng": -95.3400382,
+    "osm_name": "South Park Annex"
+  },
+  "stadium parking garage": {
+    "lat": 29.723398,
+    "lng": -95.3481018,
+    "osm_name": "Stadium Parking Garage"
+  },
+  "starbucks": {
+    "lat": 29.7207616,
+    "lng": -95.3395096,
+    "osm_name": "Starbucks"
+  },
+  "student center north": {
+    "lat": 29.7208217,
+    "lng": -95.3406867,
+    "osm_name": "Student Center North"
+  },
+  "student center south": {
+    "lat": 29.720018,
+    "lng": -95.3400563,
+    "osm_name": "Student Center South"
+  },
+  "student life plaza": {
+    "lat": 29.7194812,
+    "lng": -95.344096,
+    "osm_name": "Student Life Plaza"
+  },
+  "student parking": {
+    "lat": 29.7234276,
+    "lng": -95.3373079,
+    "osm_name": "Student Parking"
+  },
+  "student service center 1": {
+    "lat": 29.7190129,
+    "lng": -95.3441974,
+    "osm_name": "Student Service Center 1"
+  },
+  "subway": {
+    "lat": 29.7191268,
+    "lng": -95.3377005,
+    "osm_name": "Subway"
+  },
+  "susanna garrison hall": {
+    "lat": 29.7251791,
+    "lng": -95.3477656,
+    "osm_name": "Susanna Garrison Hall"
+  },
+  "taco bell": {
+    "lat": 29.7260991,
+    "lng": -95.3503719,
+    "osm_name": "Taco Bell"
+  },
+  "tdecu credit union": {
+    "lat": 29.7202286,
+    "lng": -95.3412551,
+    "osm_name": "TDECU Credit Union"
+  },
+  "tdecu credit union atm": {
+    "lat": 29.7201161,
+    "lng": -95.3412619,
+    "osm_name": "TDECU Credit Union ATM"
+  },
+  "tdecu stadium": {
+    "lat": 29.7219293,
+    "lng": -95.3493218,
+    "osm_name": "TDECU Stadium"
+  },
+  "tennis courts": {
+    "lat": 29.7271833,
+    "lng": -95.3467179,
+    "osm_name": "Tennis Courts"
+  },
+  "texas learning computational center annex": {
+    "lat": 29.7148609,
+    "lng": -95.3483774,
+    "osm_name": "Texas Learning & Computational Center Annex"
+  },
+  "the church of jesus christ of latter day saints": {
+    "lat": 29.7145365,
+    "lng": -95.3419454,
+    "osm_name": "The Church of Jesus Christ of Latter-day Saints"
+  },
+  "the den": {
+    "lat": 29.7188647,
+    "lng": -95.337805,
+    "osm_name": "The Den"
+  },
+  "the nook cafe": {
+    "lat": 29.7225331,
+    "lng": -95.3372392,
+    "osm_name": "The Nook Cafe"
+  },
+  "the quad": {
+    "lat": 29.7183757,
+    "lng": -95.345819,
+    "osm_name": "The Quad"
+  },
+  "tow lot": {
+    "lat": 29.7202761,
+    "lng": -95.3509454,
+    "osm_name": "Tow Lot"
+  },
+  "uc theater": {
+    "lat": 29.719786,
+    "lng": -95.3398653,
+    "osm_name": "UC Theater"
+  },
+  "uh entrance 4 moody towers": {
+    "lat": 29.7175449,
+    "lng": -95.3411794,
+    "osm_name": "UH Entrance 4 @ Moody Towers"
+  },
+  "university center": {
+    "lat": 29.7196957,
+    "lng": -95.3407731,
+    "osm_name": "University Center"
+  },
+  "university gateway garage": {
+    "lat": 29.7191834,
+    "lng": -95.3366053,
+    "osm_name": "University Gateway Garage"
+  },
+  "university lofts apartments": {
+    "lat": 29.7221304,
+    "lng": -95.3385952,
+    "osm_name": "University Lofts Apartments"
+  },
+  "university of houston": {
+    "lat": 29.7207023,
+    "lng": -95.3434964,
+    "osm_name": "University of Houston"
+  },
+  "university of houston science center": {
+    "lat": 29.7245747,
+    "lng": -95.3450333,
+    "osm_name": "University of Houston Science Center"
+  },
+  "university village park": {
+    "lat": 29.7294583,
+    "lng": -95.3484718,
+    "osm_name": "University Village Park"
+  },
+  "valero": {
+    "lat": 29.7261474,
+    "lng": -95.3326723,
+    "osm_name": "Valero"
+  },
+  "visitor information booth 2": {
+    "lat": 29.7259744,
+    "lng": -95.3453743,
+    "osm_name": "Visitor Information Booth 2"
+  },
+  "visitor parking": {
+    "lat": 29.7176225,
+    "lng": -95.3392281,
+    "osm_name": "Visitor Parking"
+  },
+  "volleyball": {
+    "lat": 29.7173038,
+    "lng": -95.3374054,
+    "osm_name": "Volleyball"
+  },
+  "welcome center": {
+    "lat": 29.7184124,
+    "lng": -95.3399309,
+    "osm_name": "Welcome Center"
+  },
+  "welcome center parking garage": {
+    "lat": 29.7182429,
+    "lng": -95.3402759,
+    "osm_name": "Welcome Center Parking Garage"
+  },
+  "welcome center student garage": {
+    "lat": 29.7170837,
+    "lng": -95.3406183,
+    "osm_name": "Welcome Center Student Garage"
+  },
+  "wendy s": {
+    "lat": 29.7221914,
+    "lng": -95.3520521,
+    "osm_name": "Wendy's"
+  },
+  "wheeler avenue baptist church": {
+    "lat": 29.7182652,
+    "lng": -95.3520777,
+    "osm_name": "Wheeler Avenue Baptist Church"
+  },
+  "wilhelmina s grove": {
+    "lat": 29.7250599,
+    "lng": -95.3435663,
+    "osm_name": "Wilhelmina's Grove"
+  },
+  "wingstop": {
+    "lat": 29.7224321,
+    "lng": -95.3519714,
+    "osm_name": "Wingstop"
+  },
+  "yates high school": {
+    "lat": 29.7231638,
+    "lng": -95.3537399,
+    "osm_name": "Yates High School"
+  }
+}

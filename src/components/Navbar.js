@@ -3,6 +3,9 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../Firebase';
 import { useNavigate } from 'react-router-dom';
 
+// Desktop top bar. Matches the mobile header: floating/transparent over the
+// map, flat brand mark, round icon buttons. Theme-aware via dark: classes.
+// No search box. Keeps the desktop-only profile dropdown + sign out.
 export default function Navbar({ darkMode, setDarkMode, user }) {
   const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
@@ -23,63 +26,26 @@ export default function Navbar({ darkMode, setDarkMode, user }) {
   };
 
   return (
-    <div className={`absolute top-0 left-0 right-0 z-10 flex items-center px-6 py-3 gap-4 ${
-      darkMode ? 'bg-gray-950/90' : 'bg-white/90'
-    } backdrop-blur-md shadow-md`}>
+    <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 pt-3 pb-6 bg-gradient-to-b from-white/90 via-white/50 to-transparent dark:from-neutral-950/80 dark:via-neutral-950/40 dark:to-transparent">
 
-      {/* Left - Logo */}
-      <div className="flex items-center gap-3 min-w-fit">
-        {/* Shield Icon */}
-        <div className="relative">
-          <span className="absolute -inset-1 rounded-lg animate-pulse bg-blue-500/30 blur-sm" />
-          <div className="relative w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-              <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7l-9-5z"/>
-            </svg>
-          </div>
-        </div>
-
-        {/* Brand */}
-        <div>
-          <h1 className={`text-lg font-bold leading-none ${
-            darkMode ? 'text-white' : 'text-gray-900'
-          }`}>Pathly</h1>
-          <p className="text-xs text-gray-400 leading-none mt-0.5">Stay Safe. Stay Connected.</p>
-        </div>
+      {/* Left — flat brand mark */}
+      <div className="min-w-fit">
+        <h1 className="text-lg font-semibold tracking-tight text-neutral-900 dark:text-white">
+          Pathly
+        </h1>
       </div>
 
-      {/* Center - Search Bar */}
-      <div className="flex-1 max-w-xl mx-auto">
-        <div className={`flex items-center gap-2 px-4 py-2 rounded-xl ${
-          darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-gray-100 border border-gray-200'
-        }`}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            className="text-gray-400" strokeWidth="2">
-            <circle cx="11" cy="11" r="8"/>
-            <path d="m21 21-4.35-4.35"/>
-          </svg>
-          <input
-            type="text"
-            placeholder="Where do you want to go?"
-            className={`flex-1 bg-transparent text-sm outline-none ${
-              darkMode ? 'text-white placeholder-gray-500' : 'text-gray-900 placeholder-gray-400'
-            }`}
-          />
-        </div>
-      </div>
+      {/* Right — theme toggle, bell, avatar */}
+      <div className="flex items-center gap-2 min-w-fit">
 
-      {/* Right - Alerts + Dark mode + Avatar */}
-      <div className="flex items-center gap-3 min-w-fit">
-
-        {/* Dark/Light toggle */}
+        {/* Theme toggle */}
         <button
           onClick={() => setDarkMode(!darkMode)}
-          className={`p-2 rounded-lg transition-all ${
-            darkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
+          aria-label="Toggle theme"
+          className="w-10 h-10 rounded-full flex items-center justify-center transition-colors bg-neutral-100 text-neutral-700 active:bg-neutral-200 dark:bg-neutral-800 dark:text-white dark:active:bg-neutral-700"
         >
           {darkMode ? (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="5"/>
               <line x1="12" y1="1" x2="12" y2="3"/>
               <line x1="12" y1="21" x2="12" y2="23"/>
@@ -91,46 +57,45 @@ export default function Navbar({ darkMode, setDarkMode, user }) {
               <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
             </svg>
           ) : (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
             </svg>
           )}
         </button>
 
-        {/* Alerts Bell */}
-        <button className="relative p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-all">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-            stroke="white" strokeWidth="2">
+        {/* Alerts bell */}
+        <button
+          aria-label="Notifications"
+          className="relative w-10 h-10 rounded-full flex items-center justify-center transition-colors bg-neutral-100 text-neutral-700 active:bg-neutral-200 dark:bg-neutral-800 dark:text-white dark:active:bg-neutral-700"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
             <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
           </svg>
-          {/* Badge */}
-          <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center font-bold">
+          <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center font-bold">
             3
           </span>
         </button>
 
-        {/* User Avatar + Dropdown */}
+        {/* User avatar + dropdown */}
         <div className="relative">
           <button
             onClick={() => setShowDropdown(!showDropdown)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 transition-all"
+            className="flex items-center gap-1.5 pl-1.5 pr-2 h-10 rounded-full transition-colors bg-neutral-100 active:bg-neutral-200 dark:bg-neutral-800 dark:active:bg-neutral-700"
           >
-            <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">
+            <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">
               {getInitials()}
             </div>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="white" strokeWidth="2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-neutral-600 dark:text-white">
               <polyline points="6 9 12 15 18 9"/>
             </svg>
           </button>
 
-          {/* Dropdown */}
           {showDropdown && (
-            <div className="absolute right-0 top-12 w-40 bg-gray-900 border border-gray-700 rounded-xl shadow-xl overflow-hidden z-100">
+            <div className="absolute right-0 top-12 w-40 rounded-xl shadow-xl overflow-hidden z-[100] border bg-white border-neutral-200 dark:bg-neutral-900 dark:border-neutral-700">
               <button
                 onClick={handleSignOut}
-                className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-gray-800 transition-all"
+                className="w-full px-4 py-3 text-left text-sm text-red-500 active:bg-neutral-100 dark:text-red-400 dark:active:bg-neutral-800 transition-colors"
               >
                 Sign Out
               </button>
