@@ -5,20 +5,25 @@ import SOSButton from './SOSButton';
 // (OpenRouteService) leg ends and the on-campus (safe-route) leg begins.
 const PARKING_GARAGE = { lat: 29.7188, lng: -95.3398 };
 
-// Campus bounding box — used to decide whether the user is on campus.
-const CAMPUS_BOUNDS = { north: 29.7300, south: 29.7100, east: -95.3300, west: -95.3550 };
+// Campus-area check — must MATCH Map.js: a 1.5-mile walkable radius around
+// campus center (covers Bayou Oaks, Cambridge Oaks, the Lofts, etc.), not a
+// bounding box. Inside the radius you walk from where you are; beyond it the
+// blue ORS leg guides you to the parking spot you chose.
+const CAMPUS_CENTER = { lat: 29.7199, lng: -95.3422 };
+const WALKABLE_RADIUS_MILES = 1.5;
 
 const NAV_ZOOM = 19;             // how tight to zoom on the user when navigating
 const RECENTER_THRESHOLD_M = 10; // follow the user once they've moved this far
 
 function isInsideCampus(lat, lng)
 {
-  return (
-    lat <= CAMPUS_BOUNDS.north &&
-    lat >= CAMPUS_BOUNDS.south &&
-    lng <= CAMPUS_BOUNDS.east &&
-    lng >= CAMPUS_BOUNDS.west
-  );
+  const R = 3958.8;
+  const dLat = (lat - CAMPUS_CENTER.lat) * Math.PI / 180;
+  const dLng = (lng - CAMPUS_CENTER.lng) * Math.PI / 180;
+  const lat1 = CAMPUS_CENTER.lat * Math.PI / 180, lat2 = lat * Math.PI / 180;
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  const miles = R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+  return miles <= WALKABLE_RADIUS_MILES;
 }
 
 export default function NavigationMode({ route, onExit, mapRef, darkMode, destinationName, onOffCampusRoute, onJourneyMarkers })

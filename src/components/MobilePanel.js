@@ -1,12 +1,17 @@
 import { useState } from 'react';
 import DestinationPicker from './DestinationPicker';
 
-export default function MobilePanel({ darkMode, locations, onRequestRoute, onStartNavigation })
+export default function MobilePanel({ darkMode, locations, isOffCampus = false, onRequestRoute, onStartNavigation })
 {
   const [preference, setPreference] = useState('safest');
   const [routeLoading, setRouteLoading] = useState(false);
   const [endId, setEndId] = useState('');
   const [routeFound, setRouteFound] = useState(false);
+
+  // off-campus: the user picks which garage they'll park at; the green route
+  // starts there and the blue ORS leg drives/walks them to it.
+  const [parkingId, setParkingId] = useState('');
+  const parkingSpots = locations.filter((l) => l.category === 'parking');
 
   const handleFindRoute = async () =>
   {
@@ -16,10 +21,19 @@ export default function MobilePanel({ darkMode, locations, onRequestRoute, onSta
     const destination = locations.find((loc) => String(loc.id) === endId);
     if (!destination) return;
 
+    // off-campus users must pick a parking spot first — that's the route start
+    let startOverride = null;
+    if (isOffCampus)
+    {
+      const spot = parkingSpots.find((p) => String(p.id) === parkingId);
+      if (!spot) return; // button is disabled until a spot is picked
+      startOverride = { lat: spot.lat, lng: spot.lng };
+    }
+
     setRouteLoading(true);
     try
     {
-      const path = await onRequestRoute(destination.lat, destination.lng, preference);
+      const path = await onRequestRoute(destination.lat, destination.lng, preference, startOverride);
       setRouteFound(!!path);
     }
     catch (err)
@@ -50,6 +64,27 @@ export default function MobilePanel({ darkMode, locations, onRequestRoute, onSta
           </div>
         </div>
       </div>
+
+      {/* Off-campus: choose your parking spot — the route starts there and
+          the blue leg guides you to it */}
+      {isOffCampus && (
+        <div className="bg-amber-500/10 border border-amber-500/25 rounded-2xl p-4">
+          <p className="text-sm font-bold text-neutral-900 dark:text-white">
+            Looks like you're not on campus
+          </p>
+          <p className="text-xs text-neutral-500 mt-1">
+            Choose where you'll park — your safe walking route starts from there.
+          </p>
+          <div className="mt-3 bg-white dark:bg-neutral-950 rounded-2xl px-4 py-3 border border-neutral-200 dark:border-neutral-800">
+            <DestinationPicker
+              locations={parkingSpots}
+              value={parkingId}
+              onChange={(id) => { setParkingId(id); setRouteFound(false); }}
+              placeholder="Choose a parking spot…"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Route preference — inverting pills */}
       <div className="flex gap-2">
@@ -85,7 +120,7 @@ export default function MobilePanel({ darkMode, locations, onRequestRoute, onSta
       {/* Find Route — inverting primary pill */}
       <button
         onClick={handleFindRoute}
-        disabled={routeLoading || !endId}
+        disabled={routeLoading || !endId || (isOffCampus && !parkingId)}
         className="w-full bg-neutral-900 text-white dark:bg-white dark:text-black font-bold py-4 rounded-full text-base disabled:opacity-40 transition-colors active:bg-neutral-800 dark:active:bg-neutral-200 flex items-center justify-center gap-2"
       >
         {routeLoading ? 'Finding route...' : 'Find Safe Route'}

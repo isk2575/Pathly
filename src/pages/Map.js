@@ -30,26 +30,34 @@ const uhCenter = {
   lng: -95.3422,
 };
 
-const uhBounds = {
-  north: 29.7300,
-  south: 29.7100,
-  east: -95.3300,
-  west: -95.3550,
+const API_URL = process.env.REACT_APP_API_URL;
+
+// ── campus-area check: radius, not a box ────────────────────────────
+// Students live all around campus (Bayou Oaks, Cambridge Oaks, the Lofts…)
+// and walk in, so anyone within WALKABLE_RADIUS_MILES of campus center gets
+// routed from their real location. Beyond that you're officially off-campus:
+// the app asks where you'll park and routes from that garage instead.
+const CAMPUS_CENTER = { lat: 29.7199, lng: -95.3422 };
+const WALKABLE_RADIUS_MILES = 1.5;
+
+// straight-line miles between two points (haversine)
+const milesBetween = (a, b) =>
+{
+  if (!a || !b) return null;
+  const R = 3958.8;
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLng = (b.lng - a.lng) * Math.PI / 180;
+  const lat1 = a.lat * Math.PI / 180, lat2 = b.lat * Math.PI / 180;
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 };
 
-const API_URL = process.env.REACT_APP_API_URL;
-const PARKING_GARAGE = { lat: 29.7188, lng: -95.3398 };
-
-// inside the campus bounding box?
+// inside the walkable campus area?
 const isOnCampus = (loc) =>
 {
   if (!loc) return false;
-  return (
-    loc.lat <= uhBounds.north &&
-    loc.lat >= uhBounds.south &&
-    loc.lng <= uhBounds.east &&
-    loc.lng >= uhBounds.west
-  );
+  const d = milesBetween(CAMPUS_CENTER, loc);
+  return d != null && d <= WALKABLE_RADIUS_MILES;
 };
 
 // blueLightPhones now comes from ../blue_lights (real OSM emergency callboxes)
@@ -346,11 +354,21 @@ export default function Map()
     return () => navigator.geolocation.clearWatch(watch);
   }, []);
 
-  // fetch a route from the backend and store it
-  const requestRoute = async (endLat, endLng, preference = "safest") =>
+  // fetch a route from the backend and store it.
+  // startOverride: when the user is off-campus (beyond the walkable radius),
+  // the panels ask them to pick a parking spot and pass its coords here — the
+  // green route starts from that garage, and the blue ORS leg automatically
+  // targets it (NavigationMode aims the blue leg at route[0]).
+  const requestRoute = async (endLat, endLng, preference = "safest", startOverride = null) =>
   {
-    // on campus → start from where you are; off campus → start from the garage (where the blue leg drops you)
-    const start = isOnCampus(userLocation) ? userLocation : PARKING_GARAGE;
+    // campus area → start from where you are; off campus → start from the
+    // garage the user picked (startOverride)
+    const start = startOverride || (isOnCampus(userLocation) ? userLocation : null);
+    if (!start)
+    {
+      console.error("No start point: off-campus without a chosen parking spot.");
+      return null;
+    }
 
     const params = new URLSearchParams({
       start_lat: start.lat,
@@ -642,6 +660,7 @@ export default function Map()
             darkMode={darkMode}
             userLocation={userLocation}
             locations={locations}
+            isOffCampus={!!userLocation && !isOnCampus(userLocation)}
             onRequestRoute={requestRoute}
             onStartNavigation={() => setIsNavigating(true)}
           />
@@ -781,6 +800,7 @@ export default function Map()
                   darkMode={darkMode}
                   userLocation={userLocation}
                   locations={locations}
+                  isOffCampus={!!userLocation && !isOnCampus(userLocation)}
                   onRequestRoute={requestRoute}
                   onStartNavigation={() => { setShowMobilePanel(false); setIsNavigating(true); }}
                 />

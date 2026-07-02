@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import DestinationPicker from './DestinationPicker';
 
-export default function LeftPanel({ darkMode, locations, onRequestRoute, onStartNavigation })
+export default function LeftPanel({ darkMode, locations, isOffCampus = false, onRequestRoute, onStartNavigation })
 {
   const [isOpen, setIsOpen] = useState(true);
   const [preference, setPreference] = useState('safest');
@@ -43,6 +43,10 @@ export default function LeftPanel({ darkMode, locations, onRequestRoute, onStart
         optBg: 'bg-white',
       };
 
+  // off-campus: pick which garage you'll park at — the route starts there
+  const [parkingId, setParkingId] = useState('');
+  const parkingSpots = locations.filter((l) => l.category === 'parking');
+
   const handleFindRoute = async () =>
   {
     if (!endId) return;
@@ -50,11 +54,20 @@ export default function LeftPanel({ darkMode, locations, onRequestRoute, onStart
     const destination = locations.find((loc) => String(loc.id) === endId);
     if (!destination) return;
 
+    // off-campus users must pick a parking spot first
+    let startOverride = null;
+    if (isOffCampus)
+    {
+      const spot = parkingSpots.find((p) => String(p.id) === parkingId);
+      if (!spot) return;
+      startOverride = { lat: spot.lat, lng: spot.lng };
+    }
+
     setRouteLoading(true);
 
     try
     {
-      const path = await onRequestRoute(destination.lat, destination.lng, preference);
+      const path = await onRequestRoute(destination.lat, destination.lng, preference, startOverride);
       setRouteFound(!!path);
     }
     catch (err)
@@ -128,6 +141,26 @@ export default function LeftPanel({ darkMode, locations, onRequestRoute, onStart
             </div>
           </div>
 
+          {/* Off-campus: choose your parking spot */}
+          {isOffCampus && (
+            <div className="rounded-3xl bg-amber-500/10 border border-amber-500/25 p-4">
+              <p className={`text-sm font-bold ${t.textMain}`}>
+                Looks like you're not on campus
+              </p>
+              <p className={`text-xs mt-1 ${t.textHint}`}>
+                Choose where you'll park — your safe walking route starts from there.
+              </p>
+              <div className={`mt-3 rounded-2xl px-3 py-2.5 ${t.card}`}>
+                <DestinationPicker
+                  locations={parkingSpots}
+                  value={parkingId}
+                  onChange={(id) => { setParkingId(id); setRouteFound(false); }}
+                  placeholder="Choose a parking spot…"
+                />
+              </div>
+            </div>
+          )}
+
           {/* Preference */}
           <div className={`rounded-full p-1 ${t.segBg}`}>
             <div className="flex gap-1">
@@ -155,7 +188,7 @@ export default function LeftPanel({ darkMode, locations, onRequestRoute, onStart
           {!routeFound ? (
             <button
               onClick={handleFindRoute}
-              disabled={routeLoading || !endId}
+              disabled={routeLoading || !endId || (isOffCampus && !parkingId)}
               className={`w-full font-black py-3.5 rounded-3xl text-sm transition-colors disabled:opacity-40 flex items-center justify-center gap-2 ${t.primary}`}
             >
               {routeLoading ? 'Finding route...' : 'Find Safe Route'}
