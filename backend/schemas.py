@@ -92,3 +92,13 @@ class ConfirmResult(BaseModel):
     confirmation_count: int
     status: str          # may flip to "active" once it crosses the threshold
     promoted: bool       # true on the vote that pushed a pending report live
+
+
+class RouteExplainRequest(BaseModel):
+    """Payload for POST /route/explain — the route endpoints so the server can
+    recompute the path and analyze it (we don't trust a client-supplied path)."""
+    start_lat: float
+    start_lng: float
+    end_lat: float
+    end_lng: float
+    destination_name: Optional[str] = None

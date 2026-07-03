@@ -296,6 +296,79 @@ def make_incident_weight(incidents):
     return weight
 
 
+def analyze_route(path, incidents, db: Session):
+    """Given a computed path, gather the concrete safety facts an explanation
+    can be grounded in: which incidents the route stays clear of (and which it
+    still passes near), and how many blue-light phones are along it.
+
+    Everything here is DERIVED FROM REAL DATA — no guessing. The /route/explain
+    endpoint feeds these facts to the LLM so it can only narrate what's true.
+    """
+    if not path:
+        return {"avoided_incidents": [], "near_incidents": [], "bluelights_near": 0}
+
+    # sample the path (every point) and, for each incident, find the closest
+    # approach of the route to it. If the route never comes within the penalty
+    # radius, it effectively "avoided" that incident.
+    def min_dist_to_path(ilat, ilng):
+        best = float("inf")
+        for p in path:
+            d = haversine_m(p["lat"], p["lng"], ilat, ilng)
+            if d < best:
+                best = d
+        return best
+
+    # pull incident detail rows once (active + resolved) so we can name them
+    detail_rows = (
+        db.query(Incident)
+        .filter(
+            Incident.status.in_([IncidentStatus.active, IncidentStatus.resolved]),
+            Incident.is_deleted.isnot(True),
+            Incident.lat.isnot(None),
+            Incident.lng.isnot(None),
+        )
+        .all()
+    )
+
+    NEAR_M = INCIDENT_RADIUS_M          # within this, the route passes "near" it
+    AVOID_BAND_M = INCIDENT_RADIUS_M * 3  # incidents in this band that the route kept out of
+
+    avoided, near = [], []
+    for r in detail_rows:
+        d = min_dist_to_path(r.lat, r.lng)
+        sev = getattr(r.severity, "value", str(r.severity))
+        info = {
+            "type": r.type,
+            "location_text": r.location_text,
+            "severity": sev,
+            "distance_m": round(d),
+            "official": r.source == IncidentSource.official,
+        }
+        if d <= NEAR_M:
+            near.append(info)
+        elif d <= AVOID_BAND_M:
+            avoided.append(info)
+
+    # closest incidents first
+    avoided.sort(key=lambda x: x["distance_m"])
+    near.sort(key=lambda x: x["distance_m"])
+
+    # blue lights the route passes near
+    lights = db.query(BlueLight).filter(BlueLight.is_active.is_(True)).all()
+    BL_NEAR_M = 40.0
+    bl_count = 0
+    for bl in lights:
+        d = min_dist_to_path(bl.lat, bl.lng)
+        if d <= BL_NEAR_M:
+            bl_count += 1
+
+    return {
+        "avoided_incidents": avoided[:6],   # cap so the payload stays small
+        "near_incidents": near[:6],
+        "bluelights_near": bl_count,
+    }
+
+
 def get_or_create_user(db: Session, firebase_uid: Optional[str]) -> Optional[User]:
     if not firebase_uid:
         return None
@@ -501,6 +574,106 @@ def get_fastest_route(start_lat: float, start_lng: float, end_lat: float, end_ln
     if path is None:
         return {"error": "No route found"}
     return {"preference": "fastest", "path": path}
+
+
+# ─── Route explanation (LLM narrates the deterministic route) ─────────
+# The LLM ONLY explains facts we compute from real data (incidents the route
+# avoids, blue lights it passes). It never re-routes or invents safety claims.
+# The API key lives in the ANTHROPIC_API_KEY env var (server-side only —
+# never shipped to the browser).
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+
+
+@app.post("/route/explain")
+def explain_route(payload: schemas.RouteExplainRequest, db: Session = Depends(get_db)):
+    """Return a short, grounded explanation of why the safest route is safer.
+
+    Recomputes the route facts server-side (so the explanation can't be spoofed
+    by the client), then asks Claude to narrate ONLY those facts. Falls back to
+    a plain templated sentence if the API key is missing or the call fails —
+    the feature degrades gracefully and never blocks routing.
+    """
+    expire_stale_incidents(db)
+    incidents = incident_risk_points(db)
+
+    # recompute the safe path from the given endpoints (don't trust a client path)
+    path = build_route(payload.start_lat, payload.start_lng,
+                       payload.end_lat, payload.end_lng, make_incident_weight(incidents))
+    if not path:
+        return {"explanation": "We couldn't analyze this route right now."}
+
+    facts = analyze_route(path, incidents, db)
+    dest = payload.destination_name or "your destination"
+
+    # build a plain-language fact summary — also our fallback if the LLM is down
+    def templated():
+        bits = []
+        if facts["avoided_incidents"]:
+            bits.append(f"steers clear of {len(facts['avoided_incidents'])} reported incident area(s)")
+        if facts["bluelights_near"] > 0:
+            bits.append(f"passes {facts['bluelights_near']} blue-light phone(s)")
+        if facts["near_incidents"]:
+            bits.append(f"note: it still passes near {len(facts['near_incidents'])} reported spot(s)")
+        if not bits:
+            return f"This route to {dest} follows main campus paths."
+        return f"This route to {dest} " + ", ".join(bits) + "."
+
+    # no key configured → graceful templated fallback
+    if not ANTHROPIC_API_KEY:
+        return {"explanation": templated(), "facts": facts, "source": "template"}
+
+    # assemble a tightly-scoped prompt: the model may ONLY use these facts
+    def fact_lines(items):
+        out = []
+        for it in items:
+            tag = "UHPD-logged" if it["official"] else "community-reported"
+            where = f" near {it['location_text']}" if it.get("location_text") else ""
+            out.append(f"- {it['type']} ({tag}, {it['severity']}){where}, ~{it['distance_m']}m from the route")
+        return "\n".join(out) if out else "- (none)"
+
+    prompt = (
+        "You are Pathly, a campus safety walking app. Explain in 2 short sentences "
+        "why the chosen walking route is the safer option. Use ONLY the facts below. "
+        "Do not invent incidents, streets, or claims. Do not give safety advice beyond "
+        "the route. Be calm and factual, not alarming.\n\n"
+        f"Destination: {dest}\n\n"
+        f"Incident areas this route stays clear of:\n{fact_lines(facts['avoided_incidents'])}\n\n"
+        f"Blue-light emergency phones along the route: {facts['bluelights_near']}\n\n"
+        f"Reported spots the route still passes near (be honest about these):\n{fact_lines(facts['near_incidents'])}\n\n"
+        "Write the 2-sentence explanation now."
+    )
+
+    try:
+        import urllib.request
+        import json as _json
+
+        req = urllib.request.Request(
+            "https://api.anthropic.com/v1/messages",
+            data=_json.dumps({
+                "model": "claude-3-5-haiku-20241022",
+                "max_tokens": 200,
+                "messages": [{"role": "user", "content": prompt}],
+            }).encode("utf-8"),
+            headers={
+                "content-type": "application/json",
+                "x-api-key": ANTHROPIC_API_KEY,
+                "anthropic-version": "2023-06-01",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = _json.loads(resp.read().decode("utf-8"))
+        text = ""
+        for block in data.get("content", []):
+            if block.get("type") == "text":
+                text += block.get("text", "")
+        text = text.strip()
+        if not text:
+            return {"explanation": templated(), "facts": facts, "source": "template"}
+        return {"explanation": text, "facts": facts, "source": "llm"}
+    except Exception as e:
+        print(f"[explain] LLM call failed: {e}")
+        return {"explanation": templated(), "facts": facts, "source": "template"}
 
 
 # ─── Admin moderation ────────────────────────────────────────────────

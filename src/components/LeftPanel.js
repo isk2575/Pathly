@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import DestinationPicker from './DestinationPicker';
+import RouteExplain from './RouteExplain';
 
-export default function LeftPanel({ darkMode, locations, isOffCampus = false, onRequestRoute, onStartNavigation })
+export default function LeftPanel({ darkMode, userLocation, locations, isOffCampus = false, onRequestRoute, onStartNavigation })
 {
   const [isOpen, setIsOpen] = useState(true);
   const [preference, setPreference] = useState('safest');
   const [routeLoading, setRouteLoading] = useState(false);
   const [endId, setEndId] = useState('');
   const [routeFound, setRouteFound] = useState(false);
+  const [lastRoute, setLastRoute] = useState(null);
 
   const t = darkMode
     ? {
@@ -69,6 +71,15 @@ export default function LeftPanel({ darkMode, locations, isOffCampus = false, on
     {
       const path = await onRequestRoute(destination.lat, destination.lng, preference, startOverride);
       setRouteFound(!!path);
+      if (path)
+      {
+        const start = startOverride || userLocation;
+        setLastRoute({
+          start,
+          end: { lat: destination.lat, lng: destination.lng },
+          name: destination.name,
+        });
+      }
     }
     catch (err)
     {
@@ -209,6 +220,16 @@ export default function LeftPanel({ darkMode, locations, isOffCampus = false, on
               </svg>
               Start Route
             </button>
+          )}
+
+          {/* Why this route? — safest route only */}
+          {routeFound && preference === 'safest' && lastRoute && (
+            <RouteExplain
+              start={lastRoute.start}
+              end={lastRoute.end}
+              destinationName={lastRoute.name}
+              darkMode={darkMode}
+            />
           )}
 
           {/* Small Info Card */}

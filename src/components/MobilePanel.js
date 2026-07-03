@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import DestinationPicker from './DestinationPicker';
+import RouteExplain from './RouteExplain';
 
-export default function MobilePanel({ darkMode, locations, isOffCampus = false, onRequestRoute, onStartNavigation })
+export default function MobilePanel({ darkMode, userLocation, locations, isOffCampus = false, onRequestRoute, onStartNavigation })
 {
   const [preference, setPreference] = useState('safest');
   const [routeLoading, setRouteLoading] = useState(false);
   const [endId, setEndId] = useState('');
   const [routeFound, setRouteFound] = useState(false);
+  const [lastRoute, setLastRoute] = useState(null); // {start, end, name} for 'Why this route?'
 
   // off-campus: the user picks which garage they'll park at; the green route
   // starts there and the blue ORS leg drives/walks them to it.
@@ -35,6 +37,15 @@ export default function MobilePanel({ darkMode, locations, isOffCampus = false, 
     {
       const path = await onRequestRoute(destination.lat, destination.lng, preference, startOverride);
       setRouteFound(!!path);
+      if (path)
+      {
+        const start = startOverride || userLocation;
+        setLastRoute({
+          start,
+          end: { lat: destination.lat, lng: destination.lng },
+          name: destination.name,
+        });
+      }
     }
     catch (err)
     {
@@ -142,6 +153,17 @@ export default function MobilePanel({ darkMode, locations, isOffCampus = false, 
           </svg>
           Start Route
         </button>
+      )}
+
+      {/* Why this route? — only for the safest route (the fastest one isn't
+          chosen for safety, so explaining its safety would be misleading) */}
+      {routeFound && preference === 'safest' && lastRoute && (
+        <RouteExplain
+          start={lastRoute.start}
+          end={lastRoute.end}
+          destinationName={lastRoute.name}
+          darkMode={darkMode}
+        />
       )}
 
     </div>
