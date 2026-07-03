@@ -38,7 +38,7 @@ const API_URL = process.env.REACT_APP_API_URL;
 // routed from their real location. Beyond that you're officially off-campus:
 // the app asks where you'll park and routes from that garage instead.
 const CAMPUS_CENTER = { lat: 29.7199, lng: -95.3422 };
-const WALKABLE_RADIUS_MILES = 1.5;
+const WALKABLE_RADIUS_MILES = 0.9;
 
 // straight-line miles between two points (haversine)
 const milesBetween = (a, b) =>
@@ -772,7 +772,7 @@ export default function Map()
               <div className="flex items-center justify-between px-5 py-2">
                 <h2 className="text-white font-bold text-lg">Find Safe Route</h2>
                 <button
-                  onClick={() => setShowMobilePanel(false)}
+                  onClick={() => { setShowMobilePanel(false); setRoute(null); }}
                   className="w-9 h-9 rounded-full bg-neutral-800 text-neutral-400 flex items-center justify-center active:bg-neutral-700"
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -842,6 +842,7 @@ export default function Map()
           onExit={() =>
           {
             setIsNavigating(false);
+            setRoute(null);           // clear the green route line so it doesn't linger
             setOffCampusCoords([]);
             setJourneyMarkers([]);
             if (mapRef.current)
