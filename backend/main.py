@@ -632,15 +632,16 @@ def explain_route(payload: schemas.RouteExplainRequest, db: Session = Depends(ge
         return "\n".join(out) if out else "- (none)"
 
     prompt = (
-        "You are Pathly, a campus safety walking app. Explain in 2 short sentences "
-        "why the chosen walking route is the safer option. Use ONLY the facts below. "
-        "Do not invent incidents, streets, or claims. Do not give safety advice beyond "
-        "the route. Be calm and factual, not alarming.\n\n"
+        "You are Pathly, a campus safety app. In ONE or TWO short, natural sentences, "
+        "tell the student why this walking route is the safer choice. Write like a calm, "
+        "confident local — not like an AI assistant. No preamble, no 'this route', no "
+        "hedging, no bullet points. Just say what makes it safer, plainly. Use ONLY the "
+        "facts below; never invent incidents, streets, or advice.\n\n"
         f"Destination: {dest}\n\n"
-        f"Incident areas this route stays clear of:\n{fact_lines(facts['avoided_incidents'])}\n\n"
-        f"Blue-light emergency phones along the route: {facts['bluelights_near']}\n\n"
-        f"Reported spots the route still passes near (be honest about these):\n{fact_lines(facts['near_incidents'])}\n\n"
-        "Write the 2-sentence explanation now."
+        f"Incident areas it stays clear of:\n{fact_lines(facts['avoided_incidents'])}\n\n"
+        f"Blue-light emergency phones along the way: {facts['bluelights_near']}\n\n"
+        f"Reported spots it still passes near (mention honestly if any):\n{fact_lines(facts['near_incidents'])}\n\n"
+        "Write it now."
     )
 
     try:

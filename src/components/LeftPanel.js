@@ -154,14 +154,19 @@ export default function LeftPanel({ darkMode, userLocation, locations, isOffCamp
 
           {/* Off-campus: choose your parking spot */}
           {isOffCampus && (
-            <div className="rounded-3xl bg-amber-500/10 border border-amber-500/25 p-4">
-              <p className={`text-sm font-bold ${t.textMain}`}>
-                Looks like you're not on campus
+            <div className={`rounded-3xl p-4 ${t.card}`}>
+              <div className="flex items-center gap-2">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`shrink-0 ${t.textHint}`}>
+                  <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z" /><circle cx="12" cy="10" r="3" />
+                </svg>
+                <p className={`text-sm font-semibold ${t.textMain}`}>
+                  You're a bit off campus
+                </p>
+              </div>
+              <p className={`text-xs mt-1.5 ${t.textHint}`}>
+                Choose where you'll park — your safe walk starts from there.
               </p>
-              <p className={`text-xs mt-1 ${t.textHint}`}>
-                Choose where you'll park — your safe walking route starts from there.
-              </p>
-              <div className={`mt-3 rounded-2xl px-3 py-2.5 ${t.card}`}>
+              <div className={`mt-3 rounded-2xl px-3 py-2.5 ${t.optBg}`}>
                 <DestinationPicker
                   locations={parkingSpots}
                   value={parkingId}

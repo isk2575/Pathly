@@ -14,6 +14,7 @@ import AnimatedRoute from '../components/AnimatedRoute';
 import OffCampusRoute from '../components/OffCampusRoute';
 import CampusLights from '../components/CampusLights';
 import DangerZones from '../components/DangerZones';
+import RouteExplain from '../components/RouteExplain';
 import AlertDiscussion from '../components/AlertDiscussion';
 import ImageLightbox from '../components/ImageLightbox';
 import { blueLightPhones } from '../blue_lights';
@@ -130,6 +131,9 @@ export default function Map()
   const [userLocation, setUserLocation] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showMobilePanel, setShowMobilePanel] = useState(false);
+  // mobile: when a route is found we close the picker and show a floating card
+  // on the map with Start Route + Why this route. This holds that card's data.
+  const [mobileRouteCard, setMobileRouteCard] = useState(null); // {start, end, name, preference} | null
   const [showRightPanel, setShowRightPanel] = useState(false);
   const [locations, setLocations] = useState([]);
   const mapRef = useRef(null);
@@ -327,8 +331,8 @@ export default function Map()
         }
       );
 
-      // show mobile panel after route found
-      if (isMobile) setShowMobilePanel(true);
+      // (mobile no longer re-opens the picker here — when a route is found the
+      // picker closes and a floating route card shows on the map instead)
     }
   }, [route]);
 
@@ -802,14 +806,71 @@ export default function Map()
                   locations={locations}
                   isOffCampus={!!userLocation && !isOnCampus(userLocation)}
                   onRequestRoute={requestRoute}
-                  onStartNavigation={() => { setShowMobilePanel(false); setIsNavigating(true); }}
+                  onRouteReady={(info) =>
+                  {
+                    setShowMobilePanel(false);   // close the picker
+                    setMobileRouteCard(info);    // show the floating route card
+                  }}
                 />
 
               </div>
             </div>
           )}
 
-          {/* Mobile Safety drawer — opens from the hamburger */}
+              {/* Floating route card — shows on the map once a route is found, so
+              the map (with the drawn route) is visible. Holds Start Route +
+              Why this route. Replaces the old in-panel buttons. */}
+          {mobileRouteCard && !showMobilePanel && (
+            <div className="absolute bottom-0 left-0 right-0 z-10 bg-neutral-900 rounded-t-3xl border-t border-neutral-800 px-5 pt-4 pb-8 flex flex-col gap-3">
+
+              {/* destination + dismiss */}
+              <div className="flex items-center justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs text-neutral-500">Route to</p>
+                  <p className="text-white font-bold text-lg truncate">
+                    {mobileRouteCard.name || 'your destination'}
+                  </p>
+                </div>
+                <button
+                  onClick={() =>
+                  {
+                    setMobileRouteCard(null);
+                    setRoute(null);
+                    setShowMobilePanel(true); // back to the picker
+                  }}
+                  aria-label="Cancel route"
+                  className="w-9 h-9 shrink-0 rounded-full bg-neutral-800 text-neutral-400 flex items-center justify-center active:bg-neutral-700"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+
+              {/* Why this route? — safest only */}
+              {mobileRouteCard.preference === 'safest' && (
+                <RouteExplain
+                  start={mobileRouteCard.start}
+                  end={mobileRouteCard.end}
+                  destinationName={mobileRouteCard.name}
+                  darkMode={darkMode}
+                />
+              )}
+
+              {/* Start Route */}
+              <button
+                onClick={() => { setMobileRouteCard(null); setIsNavigating(true); }}
+                className="w-full bg-green-500 text-black font-bold py-4 rounded-full text-base active:bg-green-400 flex items-center justify-center gap-2"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2.5">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                Start Route
+              </button>
+            </div>
+          )}
+
+      {/* Mobile Safety drawer — opens from the hamburger */}
           <RightPanel
             darkMode={darkMode}
             isMobile

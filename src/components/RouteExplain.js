@@ -87,9 +87,12 @@ export default function RouteExplain({ start, end, destinationName, darkMode })
       </button>
 
       {open && (
-        <div className="rounded-2xl bg-blue-500/10 border border-blue-500/20 p-3">
+        <div className="rounded-2xl bg-neutral-100 dark:bg-neutral-800 p-3.5">
           {loading && (
-            <p className="text-xs text-neutral-500">Analyzing the route…</p>
+            <div className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-neutral-400 animate-pulse" />
+              <p className="text-xs text-neutral-500">Analyzing the route…</p>
+            </div>
           )}
           {!loading && error && (
             <p className="text-xs text-neutral-500">
@@ -97,14 +100,9 @@ export default function RouteExplain({ start, end, destinationName, darkMode })
             </p>
           )}
           {!loading && !error && text && (
-            <>
-              <p className="text-sm text-neutral-800 dark:text-neutral-100 leading-relaxed">
-                {text}
-              </p>
-              <p className="mt-2 text-[10px] text-neutral-400">
-                Based on reported incidents and blue-light phones along the route.
-              </p>
-            </>
+            <p className="text-sm text-neutral-800 dark:text-neutral-100 leading-relaxed">
+              {text}
+            </p>
           )}
         </div>
       )}

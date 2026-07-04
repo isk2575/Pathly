@@ -1,14 +1,12 @@
 import { useState } from 'react';
 import DestinationPicker from './DestinationPicker';
-import RouteExplain from './RouteExplain';
 
-export default function MobilePanel({ darkMode, userLocation, locations, isOffCampus = false, onRequestRoute, onStartNavigation })
+export default function MobilePanel({ darkMode, userLocation, locations, isOffCampus = false, onRequestRoute, onRouteReady })
 {
   const [preference, setPreference] = useState('safest');
   const [routeLoading, setRouteLoading] = useState(false);
   const [endId, setEndId] = useState('');
   const [routeFound, setRouteFound] = useState(false);
-  const [lastRoute, setLastRoute] = useState(null); // {start, end, name} for 'Why this route?'
 
   // off-campus: the user picks which garage they'll park at; the green route
   // starts there and the blue ORS leg drives/walks them to it.
@@ -40,11 +38,17 @@ export default function MobilePanel({ darkMode, userLocation, locations, isOffCa
       if (path)
       {
         const start = startOverride || userLocation;
-        setLastRoute({
-          start,
-          end: { lat: destination.lat, lng: destination.lng },
-          name: destination.name,
-        });
+        // hand the route up — Map closes this picker and shows the floating
+        // route card (Start Route + Why this route) on the map itself.
+        if (onRouteReady)
+        {
+          onRouteReady({
+            start,
+            end: { lat: destination.lat, lng: destination.lng },
+            name: destination.name,
+            preference,
+          });
+        }
       }
     }
     catch (err)
@@ -79,14 +83,19 @@ export default function MobilePanel({ darkMode, userLocation, locations, isOffCa
       {/* Off-campus: choose your parking spot — the route starts there and
           the blue leg guides you to it */}
       {isOffCampus && (
-        <div className="bg-amber-500/10 border border-amber-500/25 rounded-2xl p-4">
-          <p className="text-sm font-bold text-neutral-900 dark:text-white">
-            Looks like you're not on campus
+        <div className="bg-neutral-800 rounded-2xl p-4">
+          <div className="flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-neutral-400 shrink-0">
+              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z" /><circle cx="12" cy="10" r="3" />
+            </svg>
+            <p className="text-sm font-semibold text-white">
+              You're a bit off campus
+            </p>
+          </div>
+          <p className="text-xs text-neutral-400 mt-1.5">
+            Choose where you'll park — your safe walk starts from there.
           </p>
-          <p className="text-xs text-neutral-500 mt-1">
-            Choose where you'll park — your safe walking route starts from there.
-          </p>
-          <div className="mt-3 bg-white dark:bg-neutral-950 rounded-2xl px-4 py-3 border border-neutral-200 dark:border-neutral-800">
+          <div className="mt-3 bg-neutral-900 rounded-2xl px-4 py-3">
             <DestinationPicker
               locations={parkingSpots}
               value={parkingId}
@@ -141,30 +150,6 @@ export default function MobilePanel({ darkMode, userLocation, locations, isOffCa
           </svg>
         )}
       </button>
-
-      {/* Start Route — green pill (stays green in both themes; it's a go signal) */}
-      {routeFound && (
-        <button
-          onClick={onStartNavigation}
-          className="w-full bg-green-500 text-black font-bold py-4 rounded-full text-base transition-colors active:bg-green-400 flex items-center justify-center gap-2"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2.5">
-            <polygon points="5 3 19 12 5 21 5 3"/>
-          </svg>
-          Start Route
-        </button>
-      )}
-
-      {/* Why this route? — only for the safest route (the fastest one isn't
-          chosen for safety, so explaining its safety would be misleading) */}
-      {routeFound && preference === 'safest' && lastRoute && (
-        <RouteExplain
-          start={lastRoute.start}
-          end={lastRoute.end}
-          destinationName={lastRoute.name}
-          darkMode={darkMode}
-        />
-      )}
 
     </div>
   );
