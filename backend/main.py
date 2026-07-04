@@ -606,17 +606,32 @@ def explain_route(payload: schemas.RouteExplainRequest, db: Session = Depends(ge
     dest = payload.destination_name or "your destination"
 
     # build a plain-language fact summary — also our fallback if the LLM is down
+    def plural(n, word):
+        return f"{n} {word}" + ("" if n == 1 else "s")
+
     def templated():
-        bits = []
-        if facts["avoided_incidents"]:
-            bits.append(f"steers clear of {len(facts['avoided_incidents'])} reported incident area(s)")
-        if facts["bluelights_near"] > 0:
-            bits.append(f"passes {facts['bluelights_near']} blue-light phone(s)")
-        if facts["near_incidents"]:
-            bits.append(f"note: it still passes near {len(facts['near_incidents'])} reported spot(s)")
-        if not bits:
-            return f"This route to {dest} follows main campus paths."
-        return f"This route to {dest} " + ", ".join(bits) + "."
+        avoided = len(facts["avoided_incidents"])
+        near = len(facts["near_incidents"])
+        lights = facts["bluelights_near"]
+
+        parts = []
+        if avoided:
+            parts.append(f"it stays clear of {plural(avoided, 'reported incident area')}")
+        if lights:
+            parts.append(f"keeps you near {plural(lights, 'emergency blue-light phone')}")
+
+        if not parts and not near:
+            return f"This is the most direct safe path to {dest} along main campus walkways."
+
+        lead = "This path keeps you safer" if parts else "This is the safest available path"
+        body = " and ".join(parts) if parts else ""
+        sentence = f"{lead}" + (f" — {body}." if body else f" to {dest}.")
+
+        # be honest about the tradeoff, and frame why it's still the best choice
+        if near:
+            sentence += (f" It does pass near {plural(near, 'reported spot')}, "
+                         f"but that's the lowest-risk route available to {dest} right now.")
+        return sentence
 
     # no key configured → graceful templated fallback
     if not ANTHROPIC_API_KEY:
@@ -633,14 +648,18 @@ def explain_route(payload: schemas.RouteExplainRequest, db: Session = Depends(ge
 
     prompt = (
         "You are Pathly, a campus safety app. In ONE or TWO short, natural sentences, "
-        "tell the student why this walking route is the safer choice. Write like a calm, "
-        "confident local — not like an AI assistant. No preamble, no 'this route', no "
-        "hedging, no bullet points. Just say what makes it safer, plainly. Use ONLY the "
-        "facts below; never invent incidents, streets, or advice.\n\n"
+        "tell the student why this is the safest walking route available to their "
+        "destination. Write like a calm, confident local — not like an AI. No preamble, "
+        "no hedging, no bullet points, no '(s)'. Use ONLY the facts below; never invent "
+        "incidents, streets, or advice.\n\n"
+        "IMPORTANT: if the route still passes near some reported spots, don't hide it — "
+        "acknowledge it, then explain why this is STILL the best choice (e.g. it avoids "
+        "the worse areas nearby and stays close to emergency phones). The student should "
+        "finish reading understanding why to trust this path.\n\n"
         f"Destination: {dest}\n\n"
-        f"Incident areas it stays clear of:\n{fact_lines(facts['avoided_incidents'])}\n\n"
+        f"Riskier incident areas this route stays clear of:\n{fact_lines(facts['avoided_incidents'])}\n\n"
         f"Blue-light emergency phones along the way: {facts['bluelights_near']}\n\n"
-        f"Reported spots it still passes near (mention honestly if any):\n{fact_lines(facts['near_incidents'])}\n\n"
+        f"Reported spots it still passes near (acknowledge honestly):\n{fact_lines(facts['near_incidents'])}\n\n"
         "Write it now."
     )
 
@@ -651,7 +670,7 @@ def explain_route(payload: schemas.RouteExplainRequest, db: Session = Depends(ge
         req = urllib.request.Request(
             "https://api.anthropic.com/v1/messages",
             data=_json.dumps({
-                "model": "claude-3-5-haiku-20241022",
+                "model": "claude-haiku-4-5-20251001",
                 "max_tokens": 200,
                 "messages": [{"role": "user", "content": prompt}],
             }).encode("utf-8"),
