@@ -10,7 +10,7 @@ const PARKING_GARAGE = { lat: 29.7188, lng: -95.3398 };
 // bounding box. Inside the radius you walk from where you are; beyond it the
 // blue ORS leg guides you to the parking spot you chose.
 const CAMPUS_CENTER = { lat: 29.7199, lng: -95.3422 };
-const WALKABLE_RADIUS_MILES = 1.5;
+const WALKABLE_RADIUS_MILES = 0.9;
 
 const NAV_ZOOM = 19;             // how tight to zoom on the user when navigating
 const RECENTER_THRESHOLD_M = 10; // follow the user once they've moved this far
