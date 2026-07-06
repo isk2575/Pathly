@@ -467,6 +467,36 @@ export default function Map()
 
         <AnimatedRoute path={routePath} isNavigating={isNavigating} />
 
+        {/* Start + end markers so it's clear where the route goes from/to.
+            Shown when a route exists and we're not yet navigating (during nav,
+            the live position + journey pins take over). route[0] is the start
+            (your location or chosen parking spot), the last point is the
+            destination. */}
+        {routePath.length > 1 && !isNavigating && (
+          <>
+            <Marker longitude={routePath[0].lng} latitude={routePath[0].lat} anchor="center">
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ background: '#111', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '9999px', marginBottom: '3px', whiteSpace: 'nowrap', boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
+                  Start
+                </div>
+                <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#3b82f6', border: '3px solid #fff', boxShadow: '0 1px 4px rgba(0,0,0,0.5)' }} />
+              </div>
+            </Marker>
+
+            <Marker longitude={routePath[routePath.length - 1].lng} latitude={routePath[routePath.length - 1].lat} anchor="bottom">
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ background: '#16a34a', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '9999px', marginBottom: '3px', whiteSpace: 'nowrap', boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
+                  Destination
+                </div>
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="#16a34a" stroke="#fff" strokeWidth="1.5">
+                  <path d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7z" />
+                  <circle cx="12" cy="9" r="2.5" fill="#fff" stroke="none" />
+                </svg>
+              </div>
+            </Marker>
+          </>
+        )}
+
         {/* off-campus walking leg (blue) + journey pins, during navigation */}
         <OffCampusRoute coordinates={offCampusCoords} />
         {journeyMarkers.map((m) => (
