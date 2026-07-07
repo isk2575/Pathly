@@ -26,7 +26,7 @@ function isInsideCampus(lat, lng)
   return miles <= WALKABLE_RADIUS_MILES;
 }
 
-export default function NavigationMode({ route, onExit, mapRef, darkMode, destinationName, onOffCampusRoute, onJourneyMarkers })
+export default function NavigationMode({ route, onExit, mapRef, darkMode, destinationName, onOffCampusRoute, onJourneyMarkers, onReroute })
 {
   const [phase, setPhase] = useState('off_campus');
   const [currentNodeIndex, setCurrentNodeIndex] = useState(0);
@@ -40,6 +40,24 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
   const phaseRef = useRef('off_campus');
   const lastRecenterRef = useRef(null);
   const userPosRef = useRef(null); // always holds the latest GPS fix
+
+  // ── Off-route detection ──────────────────────────────────────────
+  // If the user is more than OFF_ROUTE_M metres from the nearest point on the
+  // safe route for OFF_ROUTE_HITS consecutive GPS fixes, they've strayed off
+  // the safe path — we surface a "reroute?" prompt (we never reroute silently).
+  const OFF_ROUTE_M = 45;        // how far off the path counts as "off route"
+  const OFF_ROUTE_HITS = 4;      // consecutive off fixes before we prompt (filters GPS jitter)
+  const REPROMPT_COOLDOWN_MS = 60000; // after a dismiss, wait this long before prompting again
+  const offRouteCountRef = useRef(0);
+  const dismissedUntilRef = useRef(0);
+  const [offRoute, setOffRoute] = useState(false);
+
+  // the GPS watcher effect runs once (empty deps) and would otherwise capture
+  // the initial route in its closure — so after a reroute (which swaps `route`),
+  // it'd keep measuring against the OLD path. Mirror route into a ref and read
+  // that inside the watcher so reroutes take effect immediately.
+  const routeRef = useRef(route);
+  useEffect(() => { routeRef.current = route; }, [route]);
 
   const destLabel = destinationName || 'Your destination';
 
@@ -106,6 +124,26 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
     if (!p) return;
     mapRef.current.flyTo({ center: [p.lng, p.lat], zoom: NAV_ZOOM, duration: 800 });
     lastRecenterRef.current = { lat: p.lat, lng: p.lng };
+  };
+
+  // user tapped "Reroute" — recompute the safest route from where they are now
+  // to the same destination. Map.js owns the recompute (onReroute); we just
+  // hand it the current position + the destination and clear the prompt.
+  const handleReroute = () =>
+  {
+    const p = userPosRef.current;
+    const dest = route[route.length - 1];
+    setOffRoute(false);
+    offRouteCountRef.current = 0;
+    if (p && dest && onReroute) onReroute(p.lat, p.lng, dest.lat, dest.lng);
+  };
+
+  // user dismissed the prompt — hide it and don't nag for a cooldown period
+  const dismissReroute = () =>
+  {
+    setOffRoute(false);
+    offRouteCountRef.current = 0;
+    dismissedUntilRef.current = Date.now() + REPROMPT_COOLDOWN_MS;
   };
 
   // the destination pin is shown the whole time (red, to stand out from the
@@ -200,11 +238,11 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
           phaseRef.current = 'off_campus';
           setPhase('off_campus');
 
-          // A = where you're starting from, plus the destination pin.
-          // (dropped the separate 'campus departure' marker — it landed on the
-          // same spot as the route start and just looked like a duplicate.)
-          const A = { lat: userLat, lng: userLng, letter: 'A', label: 'Start', color: '#3b82f6' };
-          if (onJourneyMarkers) onJourneyMarkers([A, D]);
+          // Me = where you are now (off campus), Start = the on-campus garage
+          // where your safe walk begins (route[0]), plus the destination pin.
+          const A = { lat: userLat, lng: userLng, letter: '', label: 'Me', color: '#3b82f6' };
+          const C = { lat: route[0].lat, lng: route[0].lng, letter: '', label: 'Start', color: '#16a34a' };
+          if (onJourneyMarkers) onJourneyMarkers([A, C, D]);
 
           fetchOffCampusRoute(userLat, userLng);
         }
@@ -241,10 +279,12 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
             switchToOnCampus();
           }
 
-          // find closest point on route
+          // find closest point on the CURRENT route (routeRef, so a reroute
+          // mid-walk is measured against the new path, not the old one)
+          const activeRoute = routeRef.current || route;
           let closestIndex = 0;
           let closestDist = Infinity;
-          route.forEach((node, i) =>
+          activeRoute.forEach((node, i) =>
           {
             const d = getDistance(userLat, userLng, node.lat, node.lng);
             if (d < closestDist)
@@ -259,8 +299,28 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
           setDistanceRemaining(remaining);
           setTimeRemaining(Math.ceil(remaining / 1.4 / 60));
 
+          // off-route detection: count consecutive fixes that are too far from
+          // the route. Only prompt once it's sustained (not a single GPS bounce),
+          // and not during the post-dismiss cooldown.
+          if (closestDist > OFF_ROUTE_M)
+          {
+            offRouteCountRef.current += 1;
+            if (
+              offRouteCountRef.current >= OFF_ROUTE_HITS &&
+              Date.now() >= dismissedUntilRef.current
+            )
+            {
+              setOffRoute(true);
+            }
+          }
+          else
+          {
+            offRouteCountRef.current = 0;
+            setOffRoute(false);
+          }
+
           // arrival detection
-          if (closestIndex >= route.length - 1 && closestDist < 15)
+          if (closestIndex >= activeRoute.length - 1 && closestDist < 15)
           {
             setArrived(true);
             navigator.geolocation.clearWatch(watchRef.current);
@@ -384,6 +444,35 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
         </div>
       )}
     </div>
+
+    {/* OFF-ROUTE / REROUTE PROMPT — appears when the user has strayed off the
+        safe path for a sustained stretch. Never reroutes silently; the student
+        chooses. Sits just below the top bar so it's visible but not blocking. */}
+    {offRoute && !arrived && (
+      <div className="absolute top-24 left-4 right-4 z-30 bg-neutral-950 border border-red-500/40 rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3">
+        <div className="w-9 h-9 shrink-0 rounded-full bg-red-500/15 flex items-center justify-center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </div>
+        <p className="flex-1 text-sm font-semibold text-white leading-tight">
+          You're off the safest path
+        </p>
+        <button
+          onClick={dismissReroute}
+          className="shrink-0 px-3 py-2 rounded-full text-xs font-bold text-neutral-400 active:bg-neutral-800"
+        >
+          Dismiss
+        </button>
+        <button
+          onClick={handleReroute}
+          className="shrink-0 px-4 py-2 rounded-full text-xs font-black bg-white text-black active:bg-neutral-200"
+        >
+          Reroute
+        </button>
+      </div>
+    )}
 
     {/* BOTTOM CARD */}
     <div className="absolute bottom-0 left-0 right-0 z-20">

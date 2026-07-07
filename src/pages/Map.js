@@ -500,14 +500,16 @@ export default function Map()
         {/* off-campus walking leg (blue) + journey pins, during navigation */}
         <OffCampusRoute coordinates={offCampusCoords} />
         {journeyMarkers.map((m) => (
-          <Marker key={m.letter || m.label} longitude={m.lng} latitude={m.lat} anchor={m.letter ? 'center' : 'bottom'}>
+          <Marker key={m.label || m.letter} longitude={m.lng} latitude={m.lat} anchor={m.label === 'Me' ? 'center' : 'bottom'}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               {m.label && (
                 <div style={{ background: m.color, color: '#fff', fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '9999px', marginBottom: '3px', whiteSpace: 'nowrap', boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
                   {m.label}
                 </div>
               )}
-              {m.letter ? (
+              {m.label === 'Me' ? (
+                <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: m.color, border: '3px solid #fff', boxShadow: '0 1px 4px rgba(0,0,0,0.5)' }} />
+              ) : m.letter ? (
                 <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: m.color, border: '2px solid #fff', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '13px', boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
                   {m.letter}
                 </div>
@@ -944,6 +946,13 @@ export default function Map()
           darkMode={darkMode}
           onOffCampusRoute={setOffCampusCoords}
           onJourneyMarkers={setJourneyMarkers}
+          onReroute={(curLat, curLng, destLat, destLng) =>
+          {
+            // recompute the safest route from where the user is NOW to the same
+            // destination. Pass their current position as the start override so
+            // the new route begins at their real location, not the old start.
+            requestRoute(destLat, destLng, "safest", { lat: curLat, lng: curLng });
+          }}
           onExit={() =>
           {
             setIsNavigating(false);
