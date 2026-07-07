@@ -108,9 +108,10 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
     lastRecenterRef.current = { lat: p.lat, lng: p.lng };
   };
 
-  // the arrival pin (D) is shown the whole time
+  // the destination pin is shown the whole time (red, to stand out from the
+  // green route). Uses a dot instead of a letter now — clearer than "D".
   const arrivalMarker = () =>
-    ({ lat: route[route.length - 1].lat, lng: route[route.length - 1].lng, letter: 'D', color: '#22c55e' });
+    ({ lat: route[route.length - 1].lat, lng: route[route.length - 1].lng, letter: '', label: 'Destination', color: '#dc2626' });
 
   // Off-campus leg: OpenRouteService foot-walking from the user to where the
   // green safe route begins, drawn (by Map.js) as a blue MapLibre line.
@@ -199,10 +200,11 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
           phaseRef.current = 'off_campus';
           setPhase('off_campus');
 
-          // A start → C campus departure → D arrival
-          const A = { lat: userLat, lng: userLng, letter: 'A', color: '#3b82f6' };
-          const C = { lat: route[0].lat, lng: route[0].lng, letter: 'C', color: '#22c55e' };
-          if (onJourneyMarkers) onJourneyMarkers([A, C, D]);
+          // A = where you're starting from, plus the destination pin.
+          // (dropped the separate 'campus departure' marker — it landed on the
+          // same spot as the route start and just looked like a duplicate.)
+          const A = { lat: userLat, lng: userLng, letter: 'A', label: 'Start', color: '#3b82f6' };
+          if (onJourneyMarkers) onJourneyMarkers([A, D]);
 
           fetchOffCampusRoute(userLat, userLng);
         }

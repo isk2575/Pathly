@@ -485,10 +485,10 @@ export default function Map()
 
             <Marker longitude={routePath[routePath.length - 1].lng} latitude={routePath[routePath.length - 1].lat} anchor="bottom">
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ background: '#16a34a', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '9999px', marginBottom: '3px', whiteSpace: 'nowrap', boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
+                <div style={{ background: '#dc2626', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '9999px', marginBottom: '3px', whiteSpace: 'nowrap', boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
                   Destination
                 </div>
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="#16a34a" stroke="#fff" strokeWidth="1.5">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="#dc2626" stroke="#fff" strokeWidth="1.5">
                   <path d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7z" />
                   <circle cx="12" cy="9" r="2.5" fill="#fff" stroke="none" />
                 </svg>
@@ -500,9 +500,23 @@ export default function Map()
         {/* off-campus walking leg (blue) + journey pins, during navigation */}
         <OffCampusRoute coordinates={offCampusCoords} />
         {journeyMarkers.map((m) => (
-          <Marker key={m.letter} longitude={m.lng} latitude={m.lat}>
-            <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: m.color, border: '2px solid #fff', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '13px', boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
-              {m.letter}
+          <Marker key={m.letter || m.label} longitude={m.lng} latitude={m.lat} anchor={m.letter ? 'center' : 'bottom'}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              {m.label && (
+                <div style={{ background: m.color, color: '#fff', fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '9999px', marginBottom: '3px', whiteSpace: 'nowrap', boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
+                  {m.label}
+                </div>
+              )}
+              {m.letter ? (
+                <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: m.color, border: '2px solid #fff', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '13px', boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
+                  {m.letter}
+                </div>
+              ) : (
+                <svg width="30" height="30" viewBox="0 0 24 24" fill={m.color} stroke="#fff" strokeWidth="1.5">
+                  <path d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7z" />
+                  <circle cx="12" cy="9" r="2.5" fill="#fff" stroke="none" />
+                </svg>
+              )}
             </div>
           </Marker>
         ))}
@@ -590,12 +604,12 @@ export default function Map()
 
       {/* Danger Zones toggle — shows the incident heatmap (your reports +
           UHPD historical). Red = more/worse/recent incidents, green = calm. */}
-      {!isNavigating && !showMobilePanel && !showRightPanel && (
+      {!showMobilePanel && !showRightPanel && (
         <button
           onClick={() => setShowZones((v) => !v)}
           aria-label={showZones ? 'Hide danger zones' : 'Show danger zones'}
           aria-pressed={showZones}
-          className={`absolute right-4 top-1/2 -translate-y-1/2 -mt-28 z-[55] w-11 h-11 rounded-full backdrop-blur border flex items-center justify-center shadow-lg transition-colors ${
+          className={`absolute right-4 top-1/2 -translate-y-1/2 z-[55] w-11 h-11 rounded-full backdrop-blur border flex items-center justify-center shadow-lg transition-colors ${isNavigating ? 'mt-2' : '-mt-28'} ${
             showZones
               ? 'bg-red-500/90 border-red-400 text-white'
               : 'bg-neutral-900/90 border-neutral-700 text-neutral-400 active:bg-neutral-800'
@@ -611,12 +625,12 @@ export default function Map()
 
       {/* Campus Lights toggle — only meaningful at night, so dark mode only.
           Sits just above the recenter button; warm/lit when on, muted when off. */}
-      {darkMode && !isNavigating && !showMobilePanel && !showRightPanel && (
+      {darkMode && !showMobilePanel && !showRightPanel && (
         <button
           onClick={() => setShowLights((v) => !v)}
           aria-label={showLights ? 'Hide campus lights' : 'Show campus lights'}
           aria-pressed={showLights}
-          className={`absolute right-4 top-1/2 -translate-y-1/2 -mt-14 z-[55] w-11 h-11 rounded-full backdrop-blur border flex items-center justify-center shadow-lg transition-colors ${
+          className={`absolute right-4 top-1/2 -translate-y-1/2 z-[55] w-11 h-11 rounded-full backdrop-blur border flex items-center justify-center shadow-lg transition-colors ${isNavigating ? 'mt-16' : '-mt-14'} ${
             showLights
               ? 'bg-amber-400/90 border-amber-300 text-neutral-900'
               : 'bg-neutral-900/90 border-neutral-700 text-neutral-400 active:bg-neutral-800'
