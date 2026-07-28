@@ -106,13 +106,13 @@ export default function MobilePanel({ darkMode, userLocation, locations, isOffCa
         </div>
       )}
 
-      {/* Route preference — inverting pills */}
+      {/* Route preference — selected pill is green (the app's "go" color) */}
       <div className="flex gap-2">
         <button
           onClick={() => setPreference('safest')}
           className={`flex-1 py-3 rounded-2xl text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 ${
             preference === 'safest'
-              ? 'bg-neutral-900 text-white dark:bg-white dark:text-black'
+              ? 'bg-green-500 text-black'
               : 'bg-neutral-100 dark:bg-neutral-900 text-neutral-500'
           }`}
         >
@@ -125,7 +125,7 @@ export default function MobilePanel({ darkMode, userLocation, locations, isOffCa
           onClick={() => setPreference('fastest')}
           className={`flex-1 py-3 rounded-2xl text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 ${
             preference === 'fastest'
-              ? 'bg-neutral-900 text-white dark:bg-white dark:text-black'
+              ? 'bg-green-500 text-black'
               : 'bg-neutral-100 dark:bg-neutral-900 text-neutral-500'
           }`}
         >

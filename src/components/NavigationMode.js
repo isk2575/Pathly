@@ -346,24 +346,24 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
   if (arrived)
   {
     return (
-      <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl">
-        <div className="bg-gray-900/90 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-10 max-w-sm w-full mx-4 text-center shadow-2xl">
+      <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80">
+        <div className="bg-neutral-950 rounded-3xl p-10 max-w-sm w-full mx-4 text-center border border-neutral-800">
           <div className="relative mx-auto mb-6 w-24 h-24">
-            <div className="w-24 h-24 bg-green-600 rounded-full flex items-center justify-center shadow-2xl shadow-green-900/50">
-              <svg width="44" height="44" viewBox="0 0 24 24" fill="white">
+            <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
             </div>
-            <span className="absolute -inset-2 rounded-full animate-ping bg-green-600/20" />
+            <span className="absolute -inset-2 rounded-full animate-ping bg-green-500/20" />
           </div>
-          <h2 className="text-white text-3xl font-bold mb-1">Arrived.</h2>
-          <p className="text-green-400 font-medium mb-1">{destLabel}</p>
-          <p className="text-gray-500 text-sm mb-8">You made it safely. Stay aware.</p>
+          <h2 className="text-white text-3xl font-black mb-1">Arrived.</h2>
+          <p className="text-green-500 font-bold mb-1">{destLabel}</p>
+          <p className="text-neutral-500 text-sm mb-8">You made it safely. Stay aware.</p>
           <div className="flex flex-col gap-3">
-            <button onClick={onExit} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl transition-all">
+            <button onClick={onExit} className="w-full bg-white text-black font-black py-4 rounded-full active:bg-neutral-200 transition-colors">
               End Navigation
             </button>
-            <button onClick={onExit} className="w-full bg-gray-800/80 hover:bg-gray-700 text-gray-300 font-medium py-4 rounded-2xl transition-all text-sm">
+            <button onClick={onExit} className="w-full bg-neutral-900 text-neutral-400 font-bold py-4 rounded-full active:bg-neutral-800 transition-colors text-sm">
               Find Another Route
             </button>
           </div>
@@ -387,8 +387,8 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
                   <circle cx="12" cy="12" r="10"/>
                   <polyline points="12 6 12 12 16 14"/>
                 </svg>
-              : <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
-                  <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7l-9-5z"/>
+              : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="3 11 22 2 13 21 11 13 3 11"/>
                 </svg>
             }
           </div>

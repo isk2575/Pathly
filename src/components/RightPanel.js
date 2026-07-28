@@ -835,7 +835,7 @@ export default function RightPanel({ darkMode, isMobile = false, isOpen = true, 
         >
           <div className="text-left">
             <h2 className="text-sm font-black text-neutral-900 dark:text-white">
-              UHPD Reports
+              UHPD Daily Reports
             </h2>
             <p className="text-xs text-neutral-500">
               Official campus crime log
