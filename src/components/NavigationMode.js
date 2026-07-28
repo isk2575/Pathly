@@ -526,12 +526,10 @@ export default function NavigationMode({ route, onExit, mapRef, darkMode, destin
           </div>
         </div>
 
-        <div className={`flex items-center gap-2 rounded-3xl px-4 py-3 border ${
-          phase === 'off_campus'
-            ? 'bg-blue-500/10 border-blue-500/20'
-            : 'bg-green-500/10 border-green-500/20'
+        <div className={`flex items-center gap-2.5 rounded-lg px-4 py-3 bg-neutral-900 border-l-4 ${
+          phase === 'off_campus' ? 'border-blue-500' : 'border-green-500'
         }`}>
-          <span className={`w-2.5 h-2.5 rounded-full ${
+          <span className={`w-2 h-2 rounded-full shrink-0 ${
             phase === 'off_campus' ? 'bg-blue-500' : 'bg-green-500'
           }`} />
 
