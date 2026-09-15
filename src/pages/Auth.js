@@ -179,7 +179,7 @@ export default function Auth()
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@uh.edu"
+                    placeholder="you@gmail.com/you@uh.edu"
                     required
                     className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2.5 text-base placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
                 />

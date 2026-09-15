@@ -19,10 +19,6 @@ import AlertDiscussion from '../components/AlertDiscussion';
 import ImageLightbox from '../components/ImageLightbox';
 import { blueLightPhones } from '../blue_lights';
 
-// MapLibre styles — MapTiler hosted tiles (reliable, free tier, needs a key).
-// Both keep building names + footpaths. streets-v2-dark is the proper dark twin
-// of streets-v2 (unlike the old CARTO dark-matter, which hid paths and labels).
-// Key comes from env (REACT_APP_MAPTILER_KEY).
 const MAP_STYLE_LIGHT = `https://api.maptiler.com/maps/streets-v2/style.json?key=${process.env.REACT_APP_MAPTILER_KEY}`;
 const MAP_STYLE_DARK = `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${process.env.REACT_APP_MAPTILER_KEY}`;
 
@@ -33,15 +29,9 @@ const uhCenter = {
 
 const API_URL = process.env.REACT_APP_API_URL;
 
-// ── campus-area check: radius, not a box ────────────────────────────
-// Students live all around campus (Bayou Oaks, Cambridge Oaks, the Lofts…)
-// and walk in, so anyone within WALKABLE_RADIUS_MILES of campus center gets
-// routed from their real location. Beyond that you're officially off-campus:
-// the app asks where you'll park and routes from that garage instead.
 const CAMPUS_CENTER = { lat: 29.7199, lng: -95.3422 };
 const WALKABLE_RADIUS_MILES = 0.9;
 
-// straight-line miles between two points (haversine)
 const milesBetween = (a, b) =>
 {
   if (!a || !b) return null;
@@ -53,7 +43,6 @@ const milesBetween = (a, b) =>
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 };
 
-// inside the walkable campus area?
 const isOnCampus = (loc) =>
 {
   if (!loc) return false;
@@ -61,9 +50,6 @@ const isOnCampus = (loc) =>
   return d != null && d <= WALKABLE_RADIUS_MILES;
 };
 
-// blueLightPhones now comes from ../blue_lights (real OSM emergency callboxes)
-
-// glowing blue-light marker (blurred halo behind a crisp marker)
 const blueLightIcon =
   "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
     <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
@@ -79,7 +65,6 @@ const blueLightIcon =
     </svg>
   `);
 
-// glowing user-location dot
 const userDotIcon =
   "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
     <svg width="34" height="34" viewBox="0 0 34 34" xmlns="http://www.w3.org/2000/svg">
@@ -90,7 +75,6 @@ const userDotIcon =
     </svg>
   `);
 
-// warning-sign icon for reported alerts, coloured by severity
 const ALERT_COLORS = { danger: '#ef4444', warning: '#f59e0b', info: '#3b82f6' };
 
 const alertIcon = (severity) =>
@@ -105,7 +89,6 @@ const alertIcon = (severity) =>
   `);
 };
 
-// "x min ago" for the alert detail popup
 const timeAgo = (iso) =>
 {
   if (!iso) return '';
@@ -122,7 +105,39 @@ const timeAgo = (iso) =>
 
 export default function Map()
 {
-  const [darkMode, setDarkMode] = useState(true);
+  // Default theme follows the local time of day: light during the day, dark at
+  // night, so the map matches what it actually looks like outside. The
+  // sun/moon toggle still lets the user override it manually — once they do,
+  // auto-switching stops for the rest of the session (see setDarkModeManual).
+  const isDaytime = () =>
+  {
+    const hour = new Date().getHours();
+    return hour >= 7 && hour < 19; // 7am-7pm counts as "day"
+  };
+  const [darkMode, setDarkMode] = useState(() => !isDaytime());
+  const userOverrodeThemeRef = useRef(false);
+
+  // re-check every few minutes so a session left open across sunrise/sunset
+  // still flips automatically — but only while the user hasn't manually chosen.
+  useEffect(() =>
+  {
+    const id = setInterval(() =>
+    {
+      if (userOverrodeThemeRef.current) return;
+      setDarkMode(!isDaytime());
+    }, 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // wraps setDarkMode so ANY manual toggle (desktop Navbar or the mobile
+  // sun/moon button) marks the override, so auto-switching stops once the
+  // user has picked a theme themselves.
+  const setDarkModeManual = (value) =>
+  {
+    userOverrodeThemeRef.current = true;
+    setDarkMode(value);
+  };
+
   const [showLights, setShowLights] = useState(true); // "Campus Lights" night glow
   const [showZones, setShowZones] = useState(false); // "Danger Zones" heatmap
   const [user, setUser] = useState(null);
@@ -131,8 +146,6 @@ export default function Map()
   const [userLocation, setUserLocation] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showMobilePanel, setShowMobilePanel] = useState(false);
-  // mobile: when a route is found we close the picker and show a floating card
-  // on the map with Start Route + Why this route. This holds that card's data.
   const [mobileRouteCard, setMobileRouteCard] = useState(null); // {start, end, name, preference} | null
   const [showRightPanel, setShowRightPanel] = useState(false);
   const [locations, setLocations] = useState([]);
@@ -142,21 +155,15 @@ export default function Map()
   const [hasDanger, setHasDanger] = useState(false);
   const [alerts, setAlerts] = useState([]);
   const [selectedAlert, setSelectedAlert] = useState(null);
-  const [discussionAlert, setDiscussionAlert] = useState(null); // alert whose comment thread is open
-  const [confirmedIds, setConfirmedIds] = useState(() => new Set()); // alerts this user confirmed this session
-  const [lightboxSrc, setLightboxSrc] = useState(null); // full-size image overlay
-  const [offCampusCoords, setOffCampusCoords] = useState([]); // ORS blue leg, [lng,lat][]
-  const [journeyMarkers, setJourneyMarkers] = useState([]); // A/C/D pins during nav
+  const [discussionAlert, setDiscussionAlert] = useState(null);
+  const [confirmedIds, setConfirmedIds] = useState(() => new Set());
+  const [lightboxSrc, setLightboxSrc] = useState(null);
+  const [offCampusCoords, setOffCampusCoords] = useState([]);
+  const [journeyMarkers, setJourneyMarkers] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
-  // how many reports are waiting for an admin to approve/delete.
-  // RightPanel owns the actual queue and reports the number up here,
-  // so this count stays correct as the admin works through it.
   const [pendingCount, setPendingCount] = useState(0);
-  // bumping this number tells RightPanel to force itself open — that's
-  // how the notification reveals the pending section on desktop.
   const [panelOpenSignal, setPanelOpenSignal] = useState(0);
 
-  // detect mobile
   useEffect(() =>
   {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -164,7 +171,6 @@ export default function Map()
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // auth state
   useEffect(() =>
   {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) =>
@@ -174,9 +180,6 @@ export default function Map()
     return () => unsubscribe();
   }, []);
 
-  // ask the backend whether this signed-in account is an admin.
-  // we re-run whenever the user changes (login / logout) so the
-  // delete controls only ever show up for allowlisted accounts.
   useEffect(() =>
   {
     if (!user)
@@ -191,12 +194,6 @@ export default function Map()
       .catch(() => setIsAdmin(false));
   }, [user]);
 
-  // soft-delete an ACTIVE alert straight from its map popup.
-  // the backend flips is_deleted=true (the row stays for the audit
-  // trail), and /incidents already filters those out. but the map
-  // was fetched once on load, so we ALSO drop it from local state
-  // here — that's what makes the pin vanish instantly instead of
-  // waiting for a reload.
   const deleteAlert = (id) =>
   {
     if (!user) return;
@@ -215,21 +212,15 @@ export default function Map()
       .catch((err) => console.error('Could not delete alert:', err));
   };
 
-  // clicking the top-right notification: open the safety panel (the
-  // mobile drawer via showRightPanel, the desktop panel via the signal)
-  // so the admin lands on the "Pending review" section that sits at its top.
   const openPendingPanel = () =>
   {
     setShowRightPanel(true);
     setPanelOpenSignal((n) => n + 1);
   };
 
-  // a user vouches for an alert ("still happening"). updates the count
-  // in place and marks it confirmed so the button locks. for a pending
-  // community report, the backend may flip it live at the threshold.
   const confirmAlert = (id) =>
   {
-    if (!user) return; // composer/popup already nudges to sign in
+    if (!user) return;
 
     fetch(`${API_URL}/incidents/${id}/confirm?firebase_uid=${user.uid}`, { method: 'POST' })
       .then((res) =>
@@ -251,18 +242,14 @@ export default function Map()
       .catch((err) => console.error('Could not confirm alert:', err));
   };
 
-  // snap the camera back to campus (used by the recenter button). same
-  // framing as the opening shot, available anytime now that the map roams free.
   const recenterOnUH = () =>
   {
     if (mapRef.current)
     {
-      // MapLibre takes [lng, lat], not {lat, lng}
       mapRef.current.flyTo({ center: [uhCenter.lng, uhCenter.lat], zoom: 16 });
     }
   };
 
-  // load pickable destinations from the backend
   useEffect(() =>
   {
     fetch(`${API_URL}/locations`)
@@ -271,10 +258,6 @@ export default function Map()
       .catch((err) => console.error("Failed to load locations:", err));
   }, []);
 
-  // active-alert count for the home Campus Safety card.
-  // POLLS every 8s so the map stays live — new alerts appear, expired ones
-  // (24h) drop off, and confirmation counts refresh without a page reload.
-  // We refresh the open popup's data too so its count stays in sync.
   useEffect(() =>
   {
     let cancelled = false;
@@ -290,8 +273,6 @@ export default function Map()
           setAlerts(list);
           setAlertCount(list.length);
           setHasDanger(list.some((a) => a.severity === 'danger'));
-          // keep the open alert popup fresh (e.g. confirmation count) if it's
-          // still live; if it expired or was removed, close the popup.
           setSelectedAlert((prev) =>
           {
             if (!prev) return prev;
@@ -302,17 +283,15 @@ export default function Map()
         .catch((err) => { if (!cancelled) console.error("Failed to load alerts:", err); });
     };
 
-    loadAlerts();                          // immediate
-    const id = setInterval(loadAlerts, 8000); // then every 8s
+    loadAlerts();
+    const id = setInterval(loadAlerts, 8000);
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
-  // zoom to fit route
   useEffect(() =>
   {
     if (route && mapRef.current && route.length > 0 && !isNavigating)
     {
-      // compute [[minLng,minLat],[maxLng,maxLat]] from the path
       let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
       route.forEach((node) =>
       {
@@ -330,13 +309,9 @@ export default function Map()
             : { top: 100, bottom: 100, left: 300, right: 300 },
         }
       );
-
-      // (mobile no longer re-opens the picker here — when a route is found the
-      // picker closes and a floating route card shows on the map instead)
     }
   }, [route]);
 
-  // GPS tracking (throttled so tiny jitters don't re-render constantly)
   useEffect(() =>
   {
     if (!navigator.geolocation) return;
@@ -348,7 +323,7 @@ export default function Map()
           const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           if (!prev) return next;
           const moved = Math.hypot(next.lat - prev.lat, next.lng - prev.lng);
-          if (moved < 0.00005) return prev; // ~5 meters; ignore jitter
+          if (moved < 0.00005) return prev;
           return next;
         });
       },
@@ -358,15 +333,8 @@ export default function Map()
     return () => navigator.geolocation.clearWatch(watch);
   }, []);
 
-  // fetch a route from the backend and store it.
-  // startOverride: when the user is off-campus (beyond the walkable radius),
-  // the panels ask them to pick a parking spot and pass its coords here — the
-  // green route starts from that garage, and the blue ORS leg automatically
-  // targets it (NavigationMode aims the blue leg at route[0]).
   const requestRoute = async (endLat, endLng, preference = "safest", startOverride = null) =>
   {
-    // campus area → start from where you are; off campus → start from the
-    // garage the user picked (startOverride)
     const start = startOverride || (isOnCampus(userLocation) ? userLocation : null);
     if (!start)
     {
@@ -392,8 +360,6 @@ export default function Map()
         return null;
       }
 
-      // the backend route ends at the nearest path node — extend it to the exact
-      // destination so the green line actually reaches the place you picked
       const path = Array.isArray(data.path) ? data.path : [];
       const fullPath = path.length > 0 ? [...path, { lat: endLat, lng: endLng }] : path;
 
@@ -407,7 +373,6 @@ export default function Map()
     }
   };
 
-  // build the polyline points once per route change, not on every render
   const routePath = useMemo(
     () => (route ? route.map((node) => ({ lat: node.lat, lng: node.lng })) : []),
     [route]
@@ -416,7 +381,6 @@ export default function Map()
   return (
     <div className={`relative w-full h-screen overflow-hidden ${darkMode ? 'dark' : ''}`}>
 
-      {/* Map — always full screen (MapLibre + free OSM style) */}
       <MapGL
         ref={mapRef}
         initialViewState={{ longitude: uhCenter.lng, latitude: uhCenter.lat, zoom: 16 }}
@@ -425,8 +389,6 @@ export default function Map()
         attributionControl={false}
         onClick={() =>
         {
-          // tapping empty map closes whatever popup is open. taps on a
-          // marker stop propagation, so only a bare map tap dismisses.
           setSelectedAlert(null);
           setSelectedPhone(null);
         }}
@@ -459,19 +421,12 @@ export default function Map()
           </Popup>
         )}
 
-        {/* danger-zone heatmap — your reports + UHPD historical, toggleable */}
         <DangerZones show={showZones} />
 
-        {/* night-map 'Lit Pathways' glow — dark mode only, toggleable */}
         <CampusLights show={darkMode && showLights} />
 
         <AnimatedRoute path={routePath} isNavigating={isNavigating} />
 
-        {/* Start + end markers so it's clear where the route goes from/to.
-            Shown when a route exists and we're not yet navigating (during nav,
-            the live position + journey pins take over). route[0] is the start
-            (your location or chosen parking spot), the last point is the
-            destination. */}
         {routePath.length > 1 && !isNavigating && (
           <>
             <Marker longitude={routePath[0].lng} latitude={routePath[0].lat} anchor="center">
@@ -497,7 +452,6 @@ export default function Map()
           </>
         )}
 
-        {/* off-campus walking leg (blue) + journey pins, during navigation */}
         <OffCampusRoute coordinates={offCampusCoords} />
         {journeyMarkers.map((m) => (
           <Marker key={m.label || m.letter} longitude={m.lng} latitude={m.lat} anchor={m.label === 'Me' ? 'center' : 'bottom'}>
@@ -604,8 +558,6 @@ export default function Map()
         )}
       </MapGL>
 
-      {/* Danger Zones toggle — shows the incident heatmap (your reports +
-          UHPD historical). Red = more/worse/recent incidents, green = calm. */}
       {!showMobilePanel && !showRightPanel && (
         <button
           onClick={() => setShowZones((v) => !v)}
@@ -625,8 +577,6 @@ export default function Map()
         </button>
       )}
 
-      {/* Campus Lights toggle — only meaningful at night, so dark mode only.
-          Sits just above the recenter button; warm/lit when on, muted when off. */}
       {darkMode && !showMobilePanel && !showRightPanel && (
         <button
           onClick={() => setShowLights((v) => !v)}
@@ -646,9 +596,6 @@ export default function Map()
         </button>
       )}
 
-      {/* Recenter on campus — the map roams free now, this brings it home.
-          Hidden in navigation mode (which drives the camera itself) and
-          whenever a panel is open over the map, so it never floats on top. */}
       {!isNavigating && !showMobilePanel && !showRightPanel && (
         <button
           onClick={recenterOnUH}
@@ -676,9 +623,6 @@ export default function Map()
 
       <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
 
-      {/* Admin-only: a notification that appears when reports are waiting
-          for review. Tapping it opens the panel to the pending queue.
-          Hidden for everyone else, and hidden when the queue is empty. */}
       {isAdmin && pendingCount > 0 && (
         <button
           onClick={openPendingPanel}
@@ -702,10 +646,9 @@ export default function Map()
         </button>
       )}
 
-      {/* DESKTOP — Normal mode UI */}
       {!isNavigating && !isMobile && (
         <>
-          <Navbar darkMode={darkMode} setDarkMode={setDarkMode} user={user} />
+          <Navbar darkMode={darkMode} setDarkMode={setDarkModeManual} user={user} />
           <LeftPanel
             darkMode={darkMode}
             userLocation={userLocation}
@@ -719,15 +662,13 @@ export default function Map()
         </>
       )}
 
-      {/* MOBILE — Normal mode UI */}
       {!isNavigating && isMobile && (
         <>
-          {/* Mobile header — clean */}
           <div className="absolute top-0 left-0 right-0 z-10 px-5 pt-3 pb-6 flex items-center justify-between bg-gradient-to-b from-black via-black/60 to-transparent">
             <h1 className="text-white text-2xl font-extrabold tracking-tight">Pathly</h1>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setDarkMode(!darkMode)}
+                onClick={() => setDarkModeManual(!darkMode)}
                 aria-label="Toggle theme"
                 className="w-10 h-10 rounded-full bg-neutral-800 text-white flex items-center justify-center active:bg-neutral-700 transition-colors"
               >
@@ -764,16 +705,13 @@ export default function Map()
             </div>
           </div>
 
-          {/* Mobile bottom stack — clean */}
           {!showMobilePanel && (
             <div className="absolute bottom-0 left-0 right-0 z-10 px-4 pb-5 space-y-3">
 
-              {/* SOS */}
               <div className="flex justify-center pb-1">
                 <SOSButton inline />
               </div>
 
-              {/* Campus Safety summary — opens the safety drawer */}
               <button
                 onClick={() => setShowRightPanel(true)}
                 className="w-full bg-neutral-800 rounded-3xl p-4 flex items-center justify-between text-left active:bg-neutral-700 transition-colors"
@@ -795,7 +733,6 @@ export default function Map()
                 </svg>
               </button>
 
-              {/* Find Safe Route — primary white pill */}
               <button
                 onClick={() => setShowMobilePanel(true)}
                 className="w-full bg-white rounded-full py-4 flex items-center justify-center gap-2.5 active:bg-neutral-200 transition-colors"
@@ -809,16 +746,13 @@ export default function Map()
             </div>
           )}
 
-          {/* Mobile bottom sheet */}
           {showMobilePanel && (
             <div className="absolute bottom-0 left-0 right-0 z-10 bg-neutral-900 rounded-t-3xl border-t border-neutral-800">
 
-              {/* Handle */}
               <div className="flex justify-center pt-3 pb-1">
                 <div className="w-10 h-1 bg-neutral-700 rounded-full" />
               </div>
 
-              {/* Close button */}
               <div className="flex items-center justify-between px-5 py-2">
                 <h2 className="text-white font-bold text-lg">Find Safe Route</h2>
                 <button
@@ -832,10 +766,8 @@ export default function Map()
                 </button>
               </div>
 
-              {/* Route finder content */}
               <div className="px-5 pb-8 flex flex-col gap-3">
 
-                {/* From */}
                 <div className="bg-neutral-800 rounded-2xl p-4">
                   <p className="text-xs text-neutral-400 mb-1">From</p>
                   <div className="flex items-center gap-2">
@@ -845,7 +777,6 @@ export default function Map()
                   <p className="text-xs text-neutral-500 mt-0.5 ml-4">GPS location</p>
                 </div>
 
-                {/* Destination + route options */}
                 <MobilePanel
                   darkMode={darkMode}
                   userLocation={userLocation}
@@ -854,8 +785,8 @@ export default function Map()
                   onRequestRoute={requestRoute}
                   onRouteReady={(info) =>
                   {
-                    setShowMobilePanel(false);   // close the picker
-                    setMobileRouteCard(info);    // show the floating route card
+                    setShowMobilePanel(false);
+                    setMobileRouteCard(info);
                   }}
                 />
 
@@ -863,13 +794,9 @@ export default function Map()
             </div>
           )}
 
-              {/* Floating route card — shows on the map once a route is found, so
-              the map (with the drawn route) is visible. Holds Start Route +
-              Why this route. Replaces the old in-panel buttons. */}
-          {mobileRouteCard && !showMobilePanel && (
+              {mobileRouteCard && !showMobilePanel && (
             <div className="absolute bottom-0 left-0 right-0 z-10 bg-neutral-900 rounded-t-3xl border-t border-neutral-800 px-5 pt-4 pb-8 flex flex-col gap-3">
 
-              {/* destination + dismiss */}
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
                   <p className="text-xs text-neutral-500">Route to</p>
@@ -882,7 +809,7 @@ export default function Map()
                   {
                     setMobileRouteCard(null);
                     setRoute(null);
-                    setShowMobilePanel(true); // back to the picker
+                    setShowMobilePanel(true);
                   }}
                   aria-label="Cancel route"
                   className="w-9 h-9 shrink-0 rounded-full bg-neutral-800 text-neutral-400 flex items-center justify-center active:bg-neutral-700"
@@ -893,7 +820,6 @@ export default function Map()
                 </button>
               </div>
 
-              {/* Why this route? — safest only */}
               {mobileRouteCard.preference === 'safest' && (
                 <RouteExplain
                   start={mobileRouteCard.start}
@@ -903,7 +829,6 @@ export default function Map()
                 />
               )}
 
-              {/* Start Route */}
               <button
                 onClick={() => { setMobileRouteCard(null); setIsNavigating(true); }}
                 className="w-full bg-green-500 text-black font-bold py-4 rounded-full text-base active:bg-green-400 flex items-center justify-center gap-2"
@@ -916,7 +841,6 @@ export default function Map()
             </div>
           )}
 
-      {/* Mobile Safety drawer — opens from the hamburger */}
           <RightPanel
             darkMode={darkMode}
             isMobile
@@ -931,14 +855,13 @@ export default function Map()
             onImageClick={setLightboxSrc}
             onFocusLocation={(lat, lng) =>
             {
-              setShowRightPanel(false); // close the drawer so the map is visible
+              setShowRightPanel(false);
               if (mapRef.current) mapRef.current.flyTo({ center: [lng, lat], zoom: 17 });
             }}
           />
         </>
       )}
 
-      {/* Navigation mode UI */}
       {isNavigating && (
         <NavigationMode
           route={route}
@@ -948,15 +871,12 @@ export default function Map()
           onJourneyMarkers={setJourneyMarkers}
           onReroute={(curLat, curLng, destLat, destLng) =>
           {
-            // recompute the safest route from where the user is NOW to the same
-            // destination. Pass their current position as the start override so
-            // the new route begins at their real location, not the old start.
             requestRoute(destLat, destLng, "safest", { lat: curLat, lng: curLng });
           }}
           onExit={() =>
           {
             setIsNavigating(false);
-            setRoute(null);           // clear the green route line so it doesn't linger
+            setRoute(null);
             setOffCampusCoords([]);
             setJourneyMarkers([]);
             if (mapRef.current)
@@ -967,7 +887,6 @@ export default function Map()
         />
       )}
 
-      {/* SOS — desktop main screen only (mobile renders it in the bottom stack; nav renders its own) */}
       {!isMobile && !isNavigating && <SOSButton />}
 
     </div>
